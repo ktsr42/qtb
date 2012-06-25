@@ -37,7 +37,7 @@ term "unit test".
 
 A unit test is a program that executes a defined component (a function
 or class method) of a project's body of code and determines if the
-output of the component is consistent with the behaviour expected from
+output of the component is consistent with the behavior expected from
 that component for the inputs provided by the unit test. Usually
 any function of the final deliverable will be covered by a number of
 unit tests.
@@ -54,7 +54,7 @@ The unit tests help to create and maintain the final deliverable of
 the project as received by the user, but are usually not part of it.
 
 Each unit test tests its target function _in isolation_ from all other
-functions of the project and also from external dependecies, for
+functions of the project and also from external dependencies, for
 example server processes that are not created during the tests
 execution time.  The assumption is that all other functions do perform
 their task in accordance with the expectations embedded in the target
@@ -70,10 +70,10 @@ outcome of the given inputs.
 Manual "unit testing" usually does the same, but in a less structured
 and certainly not repeatable fashion.
 
-Each unit test must be self-containd that it can be re-run any number
+Each unit test must be self-contained that it can be re-run any number
 of times with the same result. It will provide the same result on any
 machine that can run the development environment and it will not
-require resources than memory, cpu time, file storage and loopback
+require resources than memory, CPU time, file storage and loopback
 networking. Essentially, it must be possible to put a fresh checkout
 of the source tree onto a laptop and run all unit tests while
 disconnected from the network.
@@ -126,7 +126,7 @@ tests. I don't create unit tests for functions that are trivial and
 obviously correct. The classic example for such trivial functions
 are getters and setters that are typical for OOP languages.
 
-Declaring a function to be trivial is a judgement call. Anything that
+Declaring a function to be trivial is a judgment call. Anything that
 has a conditional, including throwing or catching an exception, is
 clearly not trivial. So is anything with side-effects or dependencies
 on other parts of the program. Also, if a bug is discovered in the
@@ -152,7 +152,7 @@ dependencies on libraries or other functions. To test it in isolation,
 all these external functions have to replaced so that the test can
 control the results and effects that the function under test sees. The
 technical terms in the literature are to "stub" or to "mock"
-subfunctions. I think the distinction is not that important in
+sub-functions. I think the distinction is not that important in
 practice, at least not for functional programming languages.
 
 In Q it is easy to redefine a function at any point in time during a
@@ -183,10 +183,10 @@ returned by it against expectations.
 The Q test bench offers features to organize the set of unit tests
 into a tree-hierarchy. Each node in the tree is either a unit test (a
 leaf) or a branch (a suite). A suite contains a collection of tests
-and/or additional subsuites. The tree is closely modeled on the Unix
+and/or additional sub-suites. The tree is closely modeled on the Unix
 filesystem. Each node has a name that is unique within the enclosing
 suite. Subsuites have to be created explicitly before tests are added
-ggto them. From the perspective of the test bench, tests are simply
+to them. From the perspective of the test bench, tests are simply
 lambdas that take no arguments and that return either true or false.
 
 The path to a given node in the tree is designated by a symbol list
@@ -194,9 +194,9 @@ that contains the name of each node in the path as a symbol. The test
 bench can execute all tests in the tree or a selected suite, as
 directed by the path given as a parameter.
 
-The test bench provides a function to execute all or a certain subtree
+The test bench provides a function to execute all or a certain sub-tree
 of all unit tests that are defined. QTB will iterate from the root of
-the tree through all subsuites and execute any test it finds. It is a
+the tree through all sub-suites and execute any test it finds. It is a
 breadth-first execution.
 
 QTB recognizes certain special node types in the tree that help with
@@ -227,10 +227,10 @@ the suite. The boundaries between before all and before each (or after
 each/all) is not well-defined, usually it is possible to put all
 actions that are part of before all also into before each.
 
-When only a subtree of the unit tests is run, all special nodes along
+When only a sub-tree of the unit tests is run, all special nodes along
 the path are executed by the framework at the appropriate point in
 time, including the special nodes at a higher level from the targeted
-subtree. Specifically, the beforeAll functions are executed before any
+sub-tree. Specifically, the beforeAll functions are executed before any
 subsuites are touched. Similarly, the afterAll functions are run at
 the appropriate point in time.
 
@@ -241,16 +241,16 @@ the along the path from the tree root, including the ones defined
 in the same suite as the tests being executed. The \*Each nodes are
 cumulative, wherease the \*All functions are not.
 
-Whe a unit test function is executed, it is expected to return either
+When a unit test function is executed, it is expected to return either
 true or false (`1b` or `0b`). Any other return value, including any
 exception being thrown causes qtb to consider the test to have
 failed. If a before all or before each node throws an exception, none
 of the tests in the affected suite are run and counted as failed,
-including the tests of any subsuites. If an exception is thrown in a
+including the tests of any sub-suites. If an exception is thrown in a
 after each or after all function, only a warning message is printed,
 but the test results are not affected.
 
-<a name="using_qtb"
+<a name="using_qtb">
 ## Using qtb.q
 </a>
 
@@ -267,12 +267,12 @@ then defines the required tests and suites.
 QTB maintains only one tree of tests per session, all tests live in
 the same tree. The tree is initialized to have a root suite.
 
-New suites (subtrees) are created by calling .qtb.suite and passing a
-symbol list with the suite path as an argument. The last element of
+New suites (sub-trees) are created by calling `.qtb.suite` and passing
+a symbol list with the suite path as an argument. The last element of
 the symbol list provided defines the name of the new suite. The full
 path must be specified and an error is thrown when any intermediate
-path element does not exist. Conversely, it is an error to create
-an existing suite a second time.
+path element does not exist. Conversely, it is an error to create an
+existing suite a second time.
 
 Test are added to the tree by calling `.qtb.addTest`, which takes two
 parameters. The first argument gives the name and path of the suite as
@@ -291,18 +291,18 @@ normal and error.
 
 Once the test tree has been set up, tests are executed by calling
 `.qtb.execute`. `.qtb.execute` takes one optional argument, the path to
-the subtree of tests that are to be executed. If no argument is given,
-all tests in the tree are executed. The path argument may desginate a
+the sub-tree of tests that are to be executed. If no argument is given,
+all tests in the tree are executed. The path argument may designate a
 single test to run. `.qtb.execute` will either return `1b` if all unit
 tests that were executed were successful or `0b` if any one of them
 returned an error or threw an exception. It will also print a log of
 the tests and special functions that it runs to stdout.
 
 By default, qtb will catch exceptions that are thrown from the unit
-tests. For debugging purposes, this can be turned off by calling
-`.qtb.executeDebug`. When run via executeDebug, no execeptions are being
-caught by qtb, thus allowing the first exception to bubble up to the q
-prompet so that the error can be investigated more easily.
+tests. This can be avoided by calling `.qtb.executeDebug` for
+debugging. When run via executeDebug, no execeptions are being caught
+by qtb, thus allowing the first exception to bubble up to the q
+prompt so that the error can be investigated more easily.
 
 Any of the special nodes are added to a suite via the functions
 
@@ -374,7 +374,7 @@ If the expected exception occurs, checkX will not write and messages
 to stdout and return 1b. In all other cases, checkX will write an
 error message and return 0b.
 
-<a name="funcalllogging"
+<a name="funcalllogging">
 #### Logging of function calls
 </a>
 
@@ -388,7 +388,7 @@ In the simplest form, the stub function can be written so that it
 processes its arguments only to the extent necessary to determine
 which pre-determined value to return so that the test progresses in
 the right direction. However, I find it usually desirable to log each
-invocation of subfunctions of the test target and have the unit test
+invocation of sub-functions of the test target and have the unit test
 assert that the function has been invoked the expected number of times
 with the expected arguments at each point. This provides a degree of
 certainty that the target function behaved as expected.
@@ -397,7 +397,7 @@ QTB provides the function `.qtb.wrapLogCall` that wraps another function
 so that the arguments that are passed into the function when invoked
 are recorded in an internal table. After that, the original function
 is invoked as normal and the result returned back to the caller. This
-provides a common means of tracking function invokations and
+provides a common means of tracking function invocations and
 evaluating them after the fact. The result of wrapLogCall is a new
 function that can be used to override a function called by the test
 target.
@@ -460,7 +460,7 @@ As a demonstration of how the Q Test Bench can be used (and also as a
 "dogfooding" exercise) I implemented a separate project and used qtb
 for writing all the unit tests.
 
-The project is to write a messaging server in q that simplyfies the
+The project is to write a messaging server in q that simplifies the
 messaging between processes. A process is dedicated to forwarding
 messages between separate q processes and each client process is
 relieved of the connection management requirements. Instead, each
@@ -475,12 +475,12 @@ This relieves the client code to deal with connection handling and
 basic message validation. All other processes in the system can be
 reached just by sending a message to the correct address. Message
 reception is implemented in Erlang-style, meaning that the incoming
-messages are queued and the client code has to explicity ask for the
+messages are queued and the client code has to explicitly ask for the
 next one.
 
 The implementation of this system is split into three parts. One
 script, `msgsrvr.q`, implements the forwarding agent and is a
-standalone program. The client (`msgclient.q`) is a script that
+standalone program. The client (`masculinity.q`) is a script that
 expects to be loaded into another q program. Both server and client
 share the library "`dispatch.q`". This module dispatches messages,
 i.e. it inspects the message and calls the handler function defined
@@ -494,25 +494,24 @@ them loads the script it is targeted at from the same directory.
 
 As a real-world example on how to write and run unit tests with qtb we
 describe the unit tests for the function `receiveMsg` in
-`msgsrvr.q. As mentioned above, the unit tests for this function live
+`msgsrvr.q`. As mentioned above, the unit tests for this function live
 in `test-msgsrv.q`.
 
 All unit tests for the `receiveMsg` functions are grouped together into
 the suite `receiveMsg. Here is are the initial definitions for the suite:
 
-...
-.qtb.suite`receiveMsg;
-.qtb.addBeforeAll[`receiveMsg;{[]
-  lg_orig::lg;
-  lg::.qtb.wrapLogCall[`lg;{[msg]}];
-  dispatch_call_orig::.dispatch.call;
-  .dispatch.call::.qtb.wrapLogCall[`.dispatch.call;{[args]}];
-  }];
+    ...
+    .qtb.suite`receiveMsg;
+    .qtb.addBeforeAll[`receiveMsg;{[]
+      lg_orig::lg;
+      lg::.qtb.wrapLogCall[`lg;{[msg]}];
+      dispatch_call_orig::.dispatch.call;
+      .dispatch.call::.qtb.wrapLogCall[`.dispatch.call;{[args]}];
+    }];
 
-.qtb.addAfterAll[`receiveMsg;{[]
-  .dispatch.call::dispatch_call_orig;
-  lg::lg_orig;
-  }];
+    .qtb.addAfterAll[`receiveMsg;{[]
+      .dispatch.call::dispatch_call_orig;
+      lg::lg_orig;
+    }];
 
-.qtb.addBeforeEach[`receiveMsg;{[] .qtb.resetFuncallLog[]; }];
-
+    .qtb.addBeforeEach[`receiveMsg;{[] .qtb.resetFuncallLog[]; }];
