@@ -1,0 +1,28 @@
+
+Running q runtests.q test_runtests_empty.q -q
+Executing test_runtests_empty.q
+
+Total number of tests executed: 0
+              Successful tests: 
+                  Failed tests: 
+Execution of test_runtests_empty.q completed successfuly
+
+Running q runtests.q test_runtests_noload.q -q
+The script test_runtests_noload.q does not load the testbench.q file.
+
+Running q runtests.q test_runtests_notestlist.q -q
+The script test_runtests_notestlist.q does not provide the ALLTESTS variable.
+
+Running q runtests.q test_runtests_crash.q -q
+Executing test_runtests_crash.q
+The test execution of test_runtests_crash.q threw an exception: wheehee
+
+Running q runtests.q test_runtests_two.q -q
+Executing test_runtests_two.q
+Test one succeeded.
+Test two FAILED.
+
+Total number of tests executed: 2
+              Successful tests: 1
+                  Failed tests: 1
+Execution of test_runtests_two.q failed

@@ -1,0 +1,32 @@
+Specification: An Consolidator for Q Scripts
+
+Objective
+
+The q source consolidator reads a q script and resolves references to
+other scripts.  This means that it outputs a consolidated script where
+all other scripts loaded via \l are replaced with the actual contents
+of the script that is given as an argument to \l.
+
+While expanding \l statements, the assembler keeps track of the
+scripts loaded and simply skips any additional reference to a script
+that has already been loaded.
+
+
+Necessary Variable Context Manipulations
+
+When one q script loads a second one via \l, the q interpreter
+preserves the context currently in effect.  It remains in effect while
+the subscript is parsed, i.e. all unqualified variable references in
+the secondary script are resolved relative it until the secondary
+script changes the context via a \d statement.  In this sense the
+context of the top-level script "leaks" into the secondary script.
+
+However, after the second script has been loaded the current context
+is restored from the preserved value.  This means that even if the
+second script changes the context via \d, the context of the top-level
+script is not affected; it does not "leak" out of the secondary one
+when it is loaded.
+
+For the q assembler script this means that it needs to keep track of
+the effective context when expanding \l to the respective file
+contents.

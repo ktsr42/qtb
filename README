@@ -1,8 +1,0 @@
-QTB - Q Test Bench
-
-The Q Test Bench is envisioned to provide some supporting
-functions for writing and running unit tests in q, the
-programming language of kdb+ from Kx Systems (see
-http://kx.com).
-
-I am preparing for the initial release.
