@@ -5,7 +5,7 @@ in q, the programming language of kdb+ from [Kx
 Systems](http://kx.com).
 
 The detailed documentation on how to use it can be found in
-[doc/qtb.md](https://github.com/ktsr42/qtb/blob/master/doc/qtb.md).
+[doc/qtb.md](blob/master/doc/qtb.md).
 
 QTB and all supporting components in this repository are licensed
 under the GNU Public License v3, which can be found on the [GNU
