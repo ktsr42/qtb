@@ -1,0 +1,19 @@
+# .gitignore for the Q Test Bench
+#
+# Not sure why this is not default ...
+
+# Ignore Emacs' backup files
+*~
+
+# Ingore Emacs' abandoned changes
+\#*\#
+
+# Ignore .html files
+*.html
+*.htm
+
+# Skip the lib directory. It is used as an output directory
+# for Q scripts that are used (loaded) by other scripts within
+# the tree.
+lib/
+

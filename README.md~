@@ -5,10 +5,10 @@ in q, the programming language of kdb+ from [Kx
 Systems](http://kx.com).
 
 The detailed documentation on how to use it can be found in
-[doc/qtb.md](blob/master/doc/qtb.md).
+[doc/qtb.md](doc/qtb.md).
 
 QTB and all supporting components in this repository are licensed
-under the GNU Public License v3, which can be found on the [GNU
+under the GNU Public License v3, which can be found on the [gnu
 website](https://www.gnu.org/copyleft/gpl.html).
 
 If you want to simply use qtb for building unit tests in q there is
