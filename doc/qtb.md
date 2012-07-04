@@ -11,6 +11,10 @@
     - [catchX](#catchx)
     - [checkX](#checkx)
     - [Logging of function calls](#funcalllogging)
+* [Sample Project with Unit Tests](#sample_project)
+  + [Live unit test example](#live_example)
+    - [Suite setup](#example_suite_setup)
+    - [Unit tests](#example_unit_tests)
 
 <a name="intro">
 ## Introduction
@@ -62,7 +66,7 @@ function (In other words: In accordance with the other
 function's interface and contract).
 
 I tend to think of a unit test as taking a component of a larger
-machine, e.g. a cpu chip or a motor, putting it into a test jig that
+machine, e.g. a CPU chip or a motor, putting it into a test jig that
 supplies power and any other necessary inputs to elicit a certain
 result and then observing that the expected result is indeed the
 outcome of the given inputs.
@@ -117,7 +121,7 @@ However, as I said at the beginning, I do believe that unit tests are
 mandatory. Once I have created the main body of code I switch over to
 creating unit tests for each function. This tends to be the tedious
 part of the job, but it is well worth the effort. Lots of ink has been
-spilt on the benefits of having unit tests, so I won't repeat them
+spilled on the benefits of having unit tests, so I won't repeat them
 here.
 
 After having finished writing the main code, I revisit each function
@@ -143,7 +147,7 @@ cleanup.
 
 Creating unit tests for pure functions that have no side-effects or
 call other functions of the program is usually straightforward. All
-variants in the behaviour of the function can be reached by varying
+variants in the behavior of the function can be reached by varying
 the arguments passed in. As it is a pure function, all we need to
 validate that the return value is the expected one.
 
@@ -239,7 +243,7 @@ tree. In other words, when executing tests, the test bench will
 execute all before- and afterEach functions that were encountered on
 the along the path from the tree root, including the ones defined
 in the same suite as the tests being executed. The \*Each nodes are
-cumulative, wherease the \*All functions are not.
+cumulative, whereas the \*All functions are not.
 
 When a unit test function is executed, it is expected to return either
 true or false (`1b` or `0b`). Any other return value, including any
@@ -403,7 +407,7 @@ function that can be used to override a function called by the test
 target.
 
 In other words, the function passed into wrapLogCall provides the
-unique behaviour of the stub, for example checking its arguments and
+unique behavior of the stub, for example checking its arguments and
 returning different results for specific cases. wrapLogCall just
 enhances it with the argument logging facilities, avoiding the need to
 code them explicitly into each stub.
@@ -422,7 +426,7 @@ The current state of the tracking table can be retrieved via
 has two columns, functionName and arguments. The functionName column
 is populated from the name symbol argument given to wrapLogCall.
 Typically the name symbol given to wrapLogCall is the name of the
-function that is being overriden with it. The arguments column
+function that is being overridden with it. The arguments column
 receives a list with the values of all arguments as they have been
 passed in.
 
@@ -480,7 +484,7 @@ next one.
 
 The implementation of this system is split into three parts. One
 script, `msgsrvr.q`, implements the forwarding agent and is a
-standalone program. The client (`masculinity.q`) is a script that
+standalone program. The client (`msgclient.q`) is a script that
 expects to be loaded into another q program. Both server and client
 share the library "`dispatch.q`". This module dispatches messages,
 i.e. it inspects the message and calls the handler function defined
@@ -490,17 +494,64 @@ The unit tests for each component are defined in separate scripts,
 `test-dispatch.q`, `test-msgsrv.q` and `test-msgclient.q`. Each of
 them loads the script it is targeted at from the same directory.
 
+<a name="live_example">
 ### Live unit test example
+</a>
 
 As a real-world example on how to write and run unit tests with qtb we
 describe the unit tests for the function `receiveMsg` in
 `msgsrvr.q`. As mentioned above, the unit tests for this function live
 in `test-msgsrv.q`.
 
-All unit tests for the `receiveMsg` functions are grouped together into
-the suite `receiveMsg. Here is are the initial definitions for the suite:
+Below is the definition of the function in `msgsrvr.q`.  It is
+responsible for processing incoming messages in the messaging server.
 
-    ...
+    receiveMsg:{[ch;msg]
+      lg "Received msg ",(-3!msg);
+      req:$[10 = type msg; parse msg; msg];
+
+      resp:@[{[args] (1b;) .dispatch.call@args}; first[req],ch,1 _ req; {[err] (0b;err)}];
+      $[first resp;     lg "Successfully processed request, result: ",-3!last resp;
+        not first resp; lg "Error evaluating request: ",last resp;
+			lg "Internal error, invalid evaluation result: ",-3!resp];
+      lg "Request processing complete";
+      };
+
+The function is called from the q asynchronous message handler
+`.z.ps`.  It receives the file handle of the communication socket as
+the first argument and the raw message as it was received by `.z.ps`
+as the second. It first logs the reception of the message and its
+contents.  If the message is a string, it uses the q parse function to
+turn it into a structure that can be passed to q's `eval`, i.e. a
+general list where the first element is a symbol identifying the
+function to call and the remainder the arguments to pass to that
+function.
+
+`receiveMsg` inserts the socket file handle on which the message came
+in as the first argument to the function to be called and then uses
+the library function `.dispatch.call` to process the message. The
+dispatch library uses the first element of the list passed to
+`.dispatch.call` to find the function to call. Each function that can
+be called via `.dispatch.call` has to be registered with the
+library. When registering a function to be called, the argument types
+of the function (commonly called the signature) must also be defined.
+`.dispatch.call` checks the arguments passed to it against this
+signature and throws an exception if there is a mismatch.
+
+`receiveMsg` catches any exception thrown from `.dispatch.call` and
+logs the outcome of the call. It is designed not to throw any
+exceptions of its own because it is typically called when processing
+asynchronous messages where there is no obvious top level to which
+exceptions can be bubbled up to.
+
+<a name="example_suite_setup">
+#### Suite setup
+</a>
+
+All unit tests for the `receiveMsg` functions are grouped together
+into the suite `receiveMsg. Here are the definition of the suite and
+the creation of a beforeAll special node:
+
     .qtb.suite`receiveMsg;
     .qtb.addBeforeAll[`receiveMsg;{[]
       lg_orig::lg;
@@ -509,9 +560,132 @@ the suite `receiveMsg. Here is are the initial definitions for the suite:
       .dispatch.call::.qtb.wrapLogCall[`.dispatch.call;{[args]}];
     }];
 
+`receiveMsg` calls the functions `lg` and `.dispatch.call`. Before any
+tests are executed, we preserve the original definitions in global
+variables (`lg_orig` and `dispatch_call_orig`) and override each
+function with a dummy that logs each invocation with the help of
+`.qtb.wrapLogCall`. Once all tests are complete, we have qtb restore
+the original definition of both functions in the _afterAll_ event:
+
     .qtb.addAfterAll[`receiveMsg;{[]
       .dispatch.call::dispatch_call_orig;
       lg::lg_orig;
     }];
 
+Lastly, as we use logging functions provided by `.qtb.wrapLogCall` we
+have qtb clean out the call log before each unit test in the suite.
+
     .qtb.addBeforeEach[`receiveMsg;{[] .qtb.resetFuncallLog[]; }];
+
+<a name="example_unit_tests">
+#### Unit tests
+</a>
+
+The first test, called `ok` confirms that `receiveMsg` behaves as
+expected when a message is successfully received. For that purpose, it
+is invoked with some arbitrary test arguments (10 and and a list with
+the symbols `afunc` and `arg`. In order to confirm that the
+function has performed its intended purpose, the call log of the
+overridden functions is examined. We check that each overridden
+function is called in the right order with the right parameters. First
+we expect the function call ``lg["Received msg `afunc`arg"]``, then
+``.dispatch.call[`afunc;10;`arg]``, then `lg["Successfully processed
+request, result: ::"]` and lastly the call `lg["Request processing
+complete"]`.
+
+The current log of all functions that have been called via a logging
+wrapper from `.qtb.wrapLogCall` can be retrieved using
+`.qtb.getFuncallLog`.  This function simply returns a copy of the
+table where the call log is maintained. The first column provides the
+name of the function that was called as a symbol. This is the symbol
+that was passed into `.qtb.wrapLogCall`. The second column holds the
+list of arguments. In order to ensure that there is never any
+automatic type promotion of the arguments column, the empty table is
+always populated with a dummy row. This dummy row is also returned
+from `.qtb.getFuncallLog`.
+
+We use `.qtb.matchValue` to compare the actual call log table to the
+expected one. In order to do that, we have to write the expected call
+log as a table.
+
+    .qtb.addTest[`receiveMsg`ok;{[]
+      receiveMsg[10;(`afunc;`arg)];
+      .qtb.matchValue["Function call log";
+		      ([] functionName:``lg`.dispatch.call`lg`lg;
+			  arguments:((::);
+				     "Received msg `afunc`arg";
+				     (`afunc;10;`arg);
+				     "Successfully processed request, result: ::";
+				     "Request processing complete"));
+		       .qtb.getFuncallLog[]]}];
+
+`.qtb.matchValue` returns true or false depending on whether the
+expected and actual values match or not. This becomes the overall
+result of the test as it is the last expression in the test function.
+
+The second unit tests `error` confirms that `receiveMsg` behaves as
+expected when an exception is thrown from `.dispatch.call`. For that
+purpose the test overrides it with a different function from the one
+used by the suite. The override function also uses the call log
+wrapper, but it throws the exception "whoops!". We only use this
+override for this particular unit tests so we first have to preserve
+the current definition of `.dispatch.call` and restore it after
+calling `receiveMsg`.
+
+    .qtb.addTest[`receiveMsg`error;{[]
+      dispatch_call_orig:.dispatch.call;
+      .dispatch.call::.qtb.wrapLogCall[`.dispatch.call;{[req] '"whoops!"}];
+      receiveMsg[3;(`afunc;`xx)];
+      .dispatch.call::dispatch_call_orig;
+      .qtb.matchValue["Function call log";
+		      ([] functionName:``lg`.dispatch.call`lg`lg;
+			  arguments:((::);
+				     "Received msg `afunc`xx";
+				     (`afunc;3;`xx);
+				     "Error evaluating request: whoops!";
+				     "Request processing complete"));
+		       .qtb.getFuncallLog[]]}];
+
+As in the `ok` unit test, we use `.qtb.matchValue` to inspect the
+call logs and confirm that `receiveMsg` has behaved the way we want it to.
+
+The last unit test `string` simply test the wrinkle that the
+incoming message can also be a string instead of a general list and
+that `receiveMsg` applies `parse` to incoming strings.
+
+    .qtb.addTest[`receiveMsg`string;{[]
+      receiveMsg[13;"afunc[`arg]"];
+      .qtb.matchValue["Function call log";
+		      EL::([] functionName:``lg`.dispatch.call`lg`lg;
+			  arguments:((::);
+				     "Received msg \"afunc[`arg]\"";
+				     (`afunc;13;enlist `arg);
+				     "Successfully processed request, result: ::";
+				     "Request processing complete"));
+		       .qtb.getFuncallLog[]]}];
+
+Via these three unit tests, we have covered all execution paths
+through `receiveMsg` except the else branch in the last conditional
+`lg "Internal error, invalid evaluation result: ",-3!resp`. We have
+skipped that because it is only a safety catch in case the function
+itself has a serious internal bug and because there is no reasonable
+way to reach that branch by manipulating the inputs to `receiveMsg`
+and the subfunctions it calls.
+
+Here is the output of qtb when running the receiveMsg suite:
+
+    q)\l test-msgsrv.q
+    q).qtb.execute`receiveMsg
+    Executing BEFOREALL for .receiveMsg
+    Executing BEFOREEACH for .receiveMsg.ok
+    Test .receiveMsg.ok succeeded
+    Executing BEFOREEACH for .receiveMsg.error
+    Test .receiveMsg.error succeeded
+    Executing BEFOREEACH for .receiveMsg.string
+    Test .receiveMsg.string succeeded
+    Executing AFTERALL for .receiveMsg
+    Tests executed: 3
+    Tests successful: 3
+    Tests failed: 0
+    1b
+    q)
