@@ -513,7 +513,7 @@ responsible for processing incoming messages in the messaging server.
       resp:@[{[args] (1b;) .dispatch.call@args}; first[req],ch,1 _ req; {[err] (0b;err)}];
       $[first resp;     lg "Successfully processed request, result: ",-3!last resp;
         not first resp; lg "Error evaluating request: ",last resp;
-			lg "Internal error, invalid evaluation result: ",-3!resp];
+                        lg "Internal error, invalid evaluation result: ",-3!resp];
       lg "Request processing complete";
       };
 
@@ -589,9 +589,8 @@ function has performed its intended purpose, the call log of the
 overridden functions is examined. We check that each overridden
 function is called in the right order with the right parameters. First
 we expect the function call ``lg["Received msg `afunc`arg"]``, then
-``.dispatch.call[`afunc;10;`arg]``, then `lg["Successfully processed
-request, result: ::"]` and lastly the call `lg["Request processing
-complete"]`.
+``.dispatch.call[`afunc;10;`arg]``, then `lg["Successfully processed request, result: ::"]`
+and lastly the call `lg["Request processing complete"]`.
 
 The current log of all functions that have been called via a logging
 wrapper from `.qtb.wrapLogCall` can be retrieved using
@@ -623,7 +622,7 @@ log as a table.
 expected and actual values match or not. This becomes the overall
 result of the test as it is the last expression in the test function.
 
-The second unit tests `error` confirms that `receiveMsg` behaves as
+The second unit test `error` confirms that `receiveMsg` behaves as
 expected when an exception is thrown from `.dispatch.call`. For that
 purpose the test overrides it with a different function from the one
 used by the suite. The override function also uses the call log
@@ -672,7 +671,7 @@ itself has a serious internal bug and because there is no reasonable
 way to reach that branch by manipulating the inputs to `receiveMsg`
 and the subfunctions it calls.
 
-Here is the output of qtb when running the receiveMsg suite:
+Here is the output of qtb when running the `receiveMsg` suite:
 
     q)\l test-msgsrv.q
     q).qtb.execute`receiveMsg
