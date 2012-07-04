@@ -601,7 +601,8 @@ that was passed into `.qtb.wrapLogCall`. The second column holds the
 list of arguments. In order to ensure that there is never any
 automatic type promotion of the arguments column, the empty table is
 always populated with a dummy row. This dummy row is also returned
-from `.qtb.getFuncallLog`.
+from `.qtb.getFuncallLog`, so we have a to account for it when checking
+the table in the test.
 
 We use `.qtb.matchValue` to compare the actual call log table to the
 expected one. In order to do that, we have to write the expected call
