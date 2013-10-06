@@ -237,3 +237,45 @@ countargs:{[fp]
 
 
 
+priv.SAVEDVALUES:enlist[`]!enlist (::);
+
+saveValue:{[varname]
+  origval:@[{(1b;value x)};varname;{[dummy] (0b;`undef)}];
+  stack:priv.SAVEDVALUES[varname];
+  priv.SAVEDVALUES[varname]:enlist[origval],stack;
+  };
+
+// valid arguments for \x:
+priv.Expungables:`.z.bm`.z.exit`.z.pc`.z.ph`.z.po`.z.ps`.z.pg`.z.pi`.z.pp`.z.pw`.z.vs`.z.ts;
+
+restoreValue:{[varname]
+  varnameS:string varname;
+  stack:priv.SAVEDVALUES[varname];
+  if[(::) ~ stack;'".qtb.restoreValue: invalid variable name: ",varnameS];
+  newstack:1 _ stack;
+  $[enlist[(::)] ~ newstack;priv.SAVEDVALUES::![priv.SAVEDVALUES;();0b;enlist varname];
+                            priv.SAVEDVALUES[varname]:newstack];
+  val:first stack;
+  if[(::) ~ val;'".qtb.restoreValue: invalid variable name: ",varnameS];
+ 
+  if[first val; varname set last val; :last val];
+  // the variable was undefined before
+  if[varname in priv.Expungables; system "x ",varnameS; :(::)];
+  // delete a regular variable
+  ctxlen:last where "." ~/: varnameS;
+  if[null ctxlen; ![`.;();0b;enlist varname]; :(::)]; // no context, top level implied
+  // we have a subcontext
+  context:`$ctxlen#varnameS;
+  vname:`$ (1 + ctxlen) _ varnameS;
+  ![context;();0b;enlist vname];
+  };
+
+// tests:
+// * root context variable, two saves
+// * regular qualified variable, two saves
+// * deep nested variable, two saves
+// * root context variable, undefined before
+// * regular qualified variable, undefined before
+// * deep nested variable, undefined before
+// * defined callback, one save/restore
+// * undefined callback, one save/restore
