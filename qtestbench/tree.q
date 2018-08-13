@@ -59,6 +59,16 @@ getLeaf:{[tree;path]
   if[`leaf <> ntype; '"tree: corrupt"];
   tree[nid;`nodeValue] };
 
+getLeafDefault:{[tree;path;dflt]
+  bid:priv.findNodeId[tree;-1 _ path];
+  if[null bid;'"tree: invalid path"];
+  if[`branch <> tree[bid;`nodeType]; '"tree: invalid path"];
+  nid:first exec id from tree where parentId=bid,nodeName = last path;
+  if[null nid;:dflt];
+  if[`leaf <> tree[nid;`nodeType]; '"tree: isbranch"];
+  :tree[nid;`nodeValue];
+  };
+
 // func is a two-argument function, it receives the path as the first and the node value as the second
 foreach:{[tree;path;func]
   p:$[`~ path;`$();path];
@@ -108,10 +118,10 @@ priv.findNodeId:{[tree;path]
   rPath:path,();        // make sure we have a symbol list
   while[(0 < count rPath) and `branch = currNode`nodeType;  // while we have path elements left and are following branches
     nodeId:first exec id from tree where parentId=nodeId,nodeName=first rPath;
-    if[null nodeId; 0Nj];         // find the id of the next child node, if it is 0Nj, we have an invalid path
+    if[null nodeId; :0Nj];         // find the id of the next child node, if it is 0Nj, we have an invalid path
     currNode:tree nodeId;         // step down to the subtree
     rPath:1 _ rPath];             // consume the path element
-  if[0 <> count rPath; 0Nj];
+  if[0 <> count rPath; :0Nj];
   nodeId };
 
 

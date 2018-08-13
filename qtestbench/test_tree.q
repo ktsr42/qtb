@@ -134,6 +134,15 @@ getLeaf_branch:{[]
 
 getLeaf_suite:`getLeaf_tealeaf`getLeaf_invalidPath`getLeaf_branch;
 
+getLeafDefault_tealeaf:{[] 42 ~ .tree.getLeafDefault[Tree1;`test`test`tealeaf;`]};
+getLeafDefault_default:{[] ` ~ .tree.getLeafDefault[Tree1;`test`test`NOTTHERE;`]};
+getLeafDefault_invalidPath:{[]
+  .test.checkException[.tree.getLeafDefault;(Tree1;`test`sidebranch`notthere`tealeaf;`);"tree: invalid path"] };
+
+getLeafDefault_branch:{[]
+  .test.checkException[.tree.getLeafDefault;(Tree1;`test`test;`);"tree: isbranch"] };
+
+getLeafDefault_suite:`getLeafDefault_tealeaf`getLeafDefault_default`getLeafDefault_invalidPath`getLeafDefault_branch;
 
 foreach_Tree1Full:{[]
   ((`test`test`tealeaf;42);(`test`sideleaf;`sixtimesseven);(enlist `rootleaf;`rotten)) ~ .tree.foreach[Tree1;`;{[p;v] (p;v)}] };
@@ -205,5 +214,5 @@ getBranches_nobranch:{[] .test.checkException[.tree.getBranches;(Tree2;`rootbran
 getBranches_suite:`getBranches_two`getBranches_none`getBranches_root`getBranches_nobranch;
 
 ALLTESTS:findNodeId_suite,validTree_suite,insertLeaf_suite,createBranch_suite,removeNode_suite,
-         getLeaf_suite,foreach_suite,foreachBranch_suite,getLeaves_suite,getBranches_suite;
+         getLeaf_suite,getLeafDefault_suite,foreach_suite,foreachBranch_suite,getLeaves_suite,getBranches_suite;
 
