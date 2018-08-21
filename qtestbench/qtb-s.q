@@ -1,6 +1,6 @@
 // Q Test Bench - A framework for writing unit tests in Q
 //
-// Copyright (C) 2012 Klaas Teschauer
+// Copyright (C) 2012, 2013, 2018 Klaas Teschauer
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -48,16 +48,23 @@
 
 \d .qtb
 
-priv.Tags:`$("_BEFOREALL";"_BEFOREEACH";"_AFTEREACH";"_AFTERALL");
+priv.Tags:`$("_BEFOREALL";"_BEFOREEACH";"_AFTEREACH";"_AFTERALL";"_OVERRIDES");
 
 priv.BeforeAllTag:priv.Tags 0;
 priv.BeforeEachTag:priv.Tags 1;
 priv.AfterEachTag:priv.Tags 2;
 priv.AfterAllTag:priv.Tags 3;
+priv.OverrideTag:priv.Tags 4;
 
-priv.nameOk:{[path] if[(last path) in priv.Tags; '"qtb: Invalid identifier"]; };
+priv.Expungable:`.z.exit`.z.pc`.z.po`.z.ps`.z.pg`.z.ts`.z.wo`.z.wc`.z.vs`.z.ac`.z.bm`.z.zd`.z.ph`.z.pm`.z.pp;
 
 priv.ALLTESTS:.tree.new[];
+
+priv.CURRENT_OVERRIDES:([] vname:`$(); origValue:(); undef:`boolean$());
+
+priv.genDict:enlist[`]!enlist (::);
+
+priv.nameOk:{[path] if[(last path) in priv.Tags; '"qtb: Invalid identifier"]; };
 
 priv.addSpecial:{[special;path;func] priv.ALLTESTS:.tree.insertLeaf[priv.ALLTESTS;path,special;func] };
 
@@ -72,7 +79,7 @@ priv.executeSpecial:{[func;suiteNameS;specialNameS]
   $[`ok ~ ex; 1b;
               [-1 suiteNameS," ",specialNameS," threw exception: ",ex; 0b]] };
   
-priv.executeSuite:{[nocatch;basePath;be;ae;currPath]
+priv.executeSuite:{[nocatch;basePath;be;ae;ovrr;currPath]
   suitepathS:priv.pathString currPath;
   leaves:.[.tree.getLeaves;(priv.ALLTESTS;currPath);
               {[sp;err] if[err ~ "tree: invalid path"; -1 sp," is not a valid suite or test."; :`invpath]; 'err}[suitepathS;]];
@@ -84,6 +91,7 @@ priv.executeSuite:{[nocatch;basePath;be;ae;currPath]
     :enlist 0b];
   
   beforeEaches:be,leaves priv.BeforeEachTag;
+  overrides:ovrr,$[(::) ~ co:leaves priv.OverrideTag;();co];
   afterEaches:ae,leaves priv.AfterEachTag;
  
   bpl:count basePath;
@@ -95,13 +103,13 @@ priv.executeSuite:{[nocatch;basePath;be;ae;currPath]
   nextNode:first mpl _ basePath;
  
   results:$[(bpl = cpl + 1) and nextNode in tests;  // basePath resolves to a single test (leaf)
-                         priv.executeTest[nocatch;beforeEaches;afterEaches;suitepathS;`name`func!(nextNode;leaves nextNode)];
+                         priv.executeTest[nocatch;beforeEaches;afterEaches;suitepathS;overrides;`name`func!(nextNode;leaves nextNode)];
  
-            bpl > cpl;   .z.s[nocatch;basePath;beforeEaches;afterEaches;(1 + mpl)#basePath]; // full basePath not reached yet, kepp following it
+            bpl > cpl;   .z.s[nocatch;basePath;beforeEaches;afterEaches;overrides;(1 + mpl)#basePath]; // full basePath not reached yet, kepp following it
  
             // else execute the tests of this suite and recurse
-                         [testResults:priv.executeTest[nocatch;beforeEaches;afterEaches;suitepathS;] each ([] name:tests; func:leaves tests);
-                         testResults,raze .z.s[nocatch;basePath;beforeEaches;afterEaches;] each
+                         [testResults:priv.executeTest[nocatch;beforeEaches;afterEaches;suitepathS;overrides;] each ([] name:tests; func:leaves tests);
+                         testResults,raze .z.s[nocatch;basePath;beforeEaches;afterEaches;overrides] each
                                                currPath ,/: .tree.getBranches[priv.ALLTESTS;currPath]]];
                        
   // execute afterAll
@@ -109,7 +117,7 @@ priv.executeSuite:{[nocatch;basePath;be;ae;currPath]
  
   results };
 
-priv.executeTest:{[nocatch;be;ae;suiteNameS;testDict]
+priv.executeTest:{[nocatch;be;ae;suiteNameS;overrides;testDict]
   testnameS:suiteNameS,".",string testDict`name;
   func:testDict`func;
   
@@ -118,11 +126,18 @@ priv.executeTest:{[nocatch;be;ae;suiteNameS;testDict]
     :0b];
     
   // execute beforeEaches
-  if[not all priv.executeSpecial[;testnameS;"BEFOREEACH"] each be;
-    :0b];
+  if[not all priv.executeSpecial[;testnameS;"BEFOREEACH"] each be; :0b];
+  resetFuncallLog[];
+
+  // apply overrides
+  priv.CURRENT_OVERRIDES:priv.applyOverrides overrides;
  
   // execute test
   tr:$[nocatch;{[f] (`success;f[])}[func];catchX[func;`]];
+
+  // revert all overrides
+  priv.revertOverrides priv.CURRENT_OVERRIDES;
+  priv.CURRENT_OVERRIDES:0#priv.CURRENT_OVERRIDES;
   
   // execute afterEaches
   priv.executeSpecial[;testnameS;"AFTEREACH"] each ae;
@@ -136,18 +151,39 @@ priv.executeTest:{[nocatch;be;ae;suiteNameS;testDict]
 priv.execute:{[catchX;basepath] 
   pn:$[any basepath ~/: (`;(::);());`$();basepath,()];
   if[11 <> type pn;'"qtb: invalid inclusion path"];
-  res:priv.executeSuite[catchX;pn;();();`$()];
+  res:priv.executeSuite[catchX;pn;();();priv.genDict;`$()];
     
   -1 "Tests executed: ",string count res;
   -1 "Tests successful: ",string sum res;
   -1 "Tests failed: ",string sum not res;
   all res,0 < count res };
 
+priv.applyOverride:{[vname;newval]
+  currval:$[undef:() ~ key vname;(::);eval vname];
+  :`vname`origValue`undef!$[undef;(vname;(::);1b);(vname;currval;0b)];
+  };
+
+priv.applyOverrides:{[od]
+  if[od ~ priv.genDict;:()];
+  :priv.applyOverride . flip (key;value)@\: ` _ od;
+  };
+
+priv.revertOverride:{[vname;val;undef]
+  if[not undef; vname set val; :(::)];
+  // take care of deleting undefined variables
+  if[2 > sum "." ~/: string vname;![`.;();0b;en vname]; :(::)];
+  if[vname in priv.Expungable;system "x ",string vname];
+  {![x;();0b;en y]} . `${"." sv/: (x 0 1;2 _x)} "." vs string  vname;
+  };
+
+priv.revertOverrides:{[overrides] {[d] priv.revertOverride . d`vname`value`undef} each overrides; }
+
 // Public Interface
 
 suite:{[path]
   priv.nameOk path;
   priv.ALLTESTS:.tree.createBranch[priv.ALLTESTS;path];
+  :path;
   };
 
 addTest:{[path;test]
@@ -159,6 +195,7 @@ addBeforeAll:priv.addSpecial[priv.BeforeAllTag;;];
 addBeforeEach:priv.addSpecial[priv.BeforeEachTag;;];
 addAfterEach:priv.addSpecial[priv.AfterEachTag;;];
 addAfterAll:priv.addSpecial[priv.AfterAllTag;;];
+overrides:priv.addSpecial[priv.OverrideTag;;];
 
 execute:priv.execute[1b;];
 executeDebug:priv.execute[0b;];
@@ -176,7 +213,7 @@ catchX:{[f;args]
   numargs:countargs f;
   cf:$[0 >= numargs;'"catchX: Unexpected number of arguments";
        1 =  numargs; {[f;arg]  (`success;f[arg])}[f;];
-       1 <  numargs; {[f;args] (`success;f . args)}[f;]];
+                     {[f;args] (`success;f . args)}[f;]];
   @[cf; args; {(`exceptn;x)}] };
 
 // Check if a function throws an expected exception
@@ -200,6 +237,10 @@ logFuncall:{[funcname;argList]
   };
 
 getFuncallLog:{[] priv.FUNCALL_LOG };
+
+override:{[vname;val]
+  priv.CURRENT_OVERRIDES:enlist[priv.applyOverride[vname;val]],priv.CURRENT_OVERRIDES;  // insert the per-test override at the beginning of the list, first in line to be reverted.
+  };
 
 // Wrap a function so that it will record its name and arguments via logFuncall[]
 // when invoked.

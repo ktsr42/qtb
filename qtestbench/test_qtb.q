@@ -7,7 +7,7 @@
 
 privExecuteN_allsucc:{[]
   executeSuite_orig:.qtb.priv.executeSuite;
-  .qtb.priv.executeSuite::{[catchX;bp;be;ae;cp] 111b};
+  .qtb.priv.executeSuite::{[catchX;bp;be;ae;ovrr;cp] 111b};
   
   res:.qtb.priv.execute[0b;`xx`yy];
   .qtb.priv.executeSuite::executeSuite_orig;
@@ -15,7 +15,7 @@ privExecuteN_allsucc:{[]
 
 privExecuteN_onefail:{[]
   executeSuite_orig:.qtb.priv.executeSuite;
-  .qtb.priv.executeSuite::{[catchX;bp;be;ae;cp] 101b};
+  .qtb.priv.executeSuite::{[catchX;bp;be;ae;ovrr;cp] 101b};
   
   res:.qtb.priv.execute[0b;()];
   .qtb.priv.executeSuite::executeSuite_orig;
@@ -270,16 +270,15 @@ isEmptyFunc_SUITE:`isEmptyFunc_true`isEmptyFunc_false`isEmptyFunc_error;
 executeSpecial_empty:{[]
   all .qtb.priv.executeSpecial[;"executeSpecial empty";] ./: (((::);"Test ::");(();"Test ()");({};"Test {}")) };
 
-.executeSpecial_mark:0b;
 executeSpecial_success:{[]
-  .executeSpecial_mark::0b;
-  r:.qtb.priv.executeSpecial[{ .executeSpecial_mark::1b; };"executeSpecial success";"oh my"];
-  .executeSpecial_mark and r }
+  executeSpecial_mark::0b;
+  r:.qtb.priv.executeSpecial[{ executeSpecial_mark::1b; };"executeSpecial success";"oh my"];
+  all R::(executeSpecial_mark;r) }
 
 executeSpecial_fail:{[]
-  .executeSpecial_mark::0b;
-  r:not .qtb.priv.executeSpecial[{ .executeSpecial_mark::1b; '"whoops"};"executeSpecial success";"oh my"];
-  .executeSpecial_mark and r }
+  executeSpecial_mark::0b;
+  r:.qtb.priv.executeSpecial[{ executeSpecial_mark::1b; '"whoops"};"executeSpecial success";"oh my"];
+  all (executeSpecial_mark;not r) }
 
 executeSpecial_SUITE:`executeSpecial_empty`executeSpecial_success`executeSpecial_fail;
 
@@ -301,7 +300,7 @@ setup:{[]
   
   executeTest_orig::.qtb.priv.executeTest;
   executeTest_log::();
-  .qtb.priv.executeTest::{[nc;be;ae;sp;f] executeTest_log,::enlist (nc;be;ae;sp;f); 0b};
+  .qtb.priv.executeTest::{[nc;be;ae;sp;ovr;f] executeTest_log,::enlist (nc;be;ae;sp;ovr;f); 0b};
  
   tree_getBranches_orig::.tree.getBranches;
   };
@@ -322,31 +321,31 @@ beforeeach_l:{[] `beforeeach_local};
 aftereach_l:{[] `aftereach_local};
 beforeeach:{[] `beforeeach};
 aftereach:{[] `aftereach};
+overrides:`varA`varB!1 2;
 
 \d .
 
 executeSuite_base:{[]
   .executeSuite.setup[];
-  leaves:(.qtb.priv.BeforeAllTag;.qtb.priv.AfterAllTag;`testa;`testb;.qtb.priv.BeforeEachTag;.qtb.priv.AfterEachTag)!
-          (.executeSuite.beforeall;.executeSuite.afterall;.executeSuite.testa;.executeSuite.testb;.executeSuite.beforeeach_l;.executeSuite.aftereach_l);
+  leaves:(.qtb.priv'[`BeforeAllTag`AfterAllTag`OverrideTag`BeforeEachTag`AfterEachTag],`testa`testb)!
+    .executeSuite'[`beforeall`afterall`overrides`beforeeach_l`aftereach_l`testa`testb];
   .tree.getLeaves::{[leaves;dummy1;dummy2] leaves}[leaves;;];
   .tree.getBranches::{[tree;path] ()};
  
-  r:.qtb.priv.executeSuite[0b;`$();.executeSuite.beforeeach;.executeSuite.aftereach;`q`test`bench];
+  r:.qtb.priv.executeSuite[0b;`$();.executeSuite.beforeeach;.executeSuite.aftereach;`varB`varC!10 20;`q`test`bench];
  
   .executeSuite.restore[];
+  exectestlog:(0b;(.executeSuite.beforeeach;.executeSuite.beforeeach_l);(.executeSuite.aftereach;.executeSuite.aftereach_l);".q.test.bench";`varB`varC`varA!2 20 1;) each (`name`func!(`testa;.executeSuite.testa);`name`func!(`testb;.executeSuite.testb));
  
-  (00b ~ r)
-    and (.executeSuite.executeSpecial_log ~
-         ((.executeSuite.beforeall;".q.test.bench";"BEFOREALL");(.executeSuite.afterall;".q.test.bench";"AFTERALL")))
-    and (.executeSuite.executeTest_log ~ 
-          (0b;(.executeSuite.beforeeach;.executeSuite.beforeeach_l);(.executeSuite.aftereach;.executeSuite.aftereach_l);".q.test.bench";) each
-            (`name`func!(`testa;.executeSuite.testa);`name`func!(`testb;.executeSuite.testb))) }
+  all (not r),(.executeSuite.executeSpecial_log ~
+          ((.executeSuite.beforeall;".q.test.bench";"BEFOREALL");(.executeSuite.afterall;".q.test.bench";"AFTERALL"));
+          .executeSuite.executeTest_log ~ exectestlog) };
 
 executeSuite_recurse:{[]
   .executeSuite.setup[];
   
-  leaves:(`testa;`testb;.qtb.priv.BeforeEachTag;.qtb.priv.AfterEachTag)!(.executeSuite.testa;.executeSuite.testb;.executeSuite.beforeeach_l;.executeSuite.aftereach_l);
+  leaves:(.qtb.priv'[`BeforeAllTag`AfterAllTag`OverrideTag],`testa`testb,.qtb.priv'[`BeforeEachTag`AfterEachTag])!
+    .executeSuite'[`beforeall`afterall`overrides`testa`testb`beforeeach_l`aftereach_l];
   .tree.getLeaves::{[leaves;dummy1;dummy2] leaves}[leaves;;];
   .executeSuite.getBranches_callcount::0;
   .tree.getBranches::{[tree;path]
@@ -355,44 +354,48 @@ executeSuite_recurse:{[]
     $[`asuite ~ path;`brancha`branchb; ()] };
  
   tests:([] name:`testa`testb; func:(.executeSuite.testa;.executeSuite.testb));
- 
-  r:.qtb.priv.executeSuite[0b;`$();();();`asuite];
+
+  r:.qtb.priv.executeSuite[0b;`$();();();`varB`varC!10 20;`asuite];
  
   .executeSuite.restore[];
+   exp_speciallog:((.executeSuite.beforeall;".asuite";"BEFOREALL");
+                   (.executeSuite.beforeall;".asuite.brancha";"BEFOREALL");
+                   (.executeSuite.afterall; ".asuite.brancha";"AFTERALL");
+                   (.executeSuite.beforeall;".asuite.branchb";"BEFOREALL");
+                   (.executeSuite.afterall; ".asuite.branchb";"AFTERALL");
+                   (.executeSuite.afterall; ".asuite";"AFTERALL"));
+
  
-  (000000b ~ r) and (.executeSuite.executeSpecial_log ~ 
-                       (((::);".asuite";"BEFOREALL");
-                        ((::);".asuite.brancha";"BEFOREALL");
-                        ((::);".asuite.brancha";"AFTERALL");
-                        ((::);".asuite.branchb";"BEFOREALL");
-                        ((::);".asuite.branchb";"AFTERALL");
-                        ((::);".asuite";"AFTERALL")))
-                and (.executeSuite.executeTest_log ~ 
-                      raze ((0b;enlist .executeSuite.beforeeach_l;enlist .executeSuite.aftereach_l;".asuite";) each tests;
-                       (0b;2#.executeSuite.beforeeach_l;2#.executeSuite.aftereach_l;".asuite.brancha";) each tests;
-                       (0b;2#.executeSuite.beforeeach_l;2#.executeSuite.aftereach_l;".asuite.branchb";) each tests)) };
+  all (not r),
+   (.executeSuite.executeSpecial_log ~ exp_speciallog;
+     (.executeSuite.executeTest_log) ~ 
+       raze
+         ((0b;enlist .executeSuite.beforeeach_l;enlist .executeSuite.aftereach_l;".asuite";`varB`varC`varA!2 20 1;) each tests;
+          (0b;2#.executeSuite.beforeeach_l;2#.executeSuite.aftereach_l;".asuite.brancha";`varB`varC`varA!2 20 1;) each tests;
+          (0b;2#.executeSuite.beforeeach_l;2#.executeSuite.aftereach_l;".asuite.branchb";`varB`varC`varA!2 20 1;) each tests)) };
 
 executeSuite_beforeallfail:{[]
   .executeSuite.setup[];
-  leaves:(.qtb.priv.BeforeAllTag;.qtb.priv.AfterAllTag;`testa;`testb;.qtb.priv.BeforeEachTag;.qtb.priv.AfterEachTag)!
-          (.executeSuite.beforeall;.executeSuite.afterall;.executeSuite.testa;.executeSuite.testb;.executeSuite.beforeeach_l;.executeSuite.aftereach_l);
+  leaves:(.qtb.priv'[`BeforeAllTag`AfterAllTag`OverrideTag],`testa`testb,.qtb.priv'[`BeforeEachTag`AfterEachTag])!
+    .executeSuite'[`beforeall`afterall`overrides`testa`testb`beforeeach_l`aftereach_l];
+
   .tree.getLeaves::{[leaves;dummy1;dummy2] leaves}[leaves;;];
  
   .qtb.priv.executeSpecial::{[f;sp;n] .executeSuite.executeSpecial_log,::enlist (f;sp;n); 0b};
  
-  r:.qtb.priv.executeSuite[0b;`$();.executeSuite.beforeeach;.executeSuite.aftereach;`];
+  r:.qtb.priv.executeSuite[0b;`$();.executeSuite.beforeeach;.executeSuite.aftereach;(`$())!();`];
   
   .executeSuite.restore[];
  
-  (r ~ enlist 0b)
-    and (.executeSuite.executeTest_log ~ ())
-    and (.executeSuite.executeSpecial_log ~ enlist (.executeSuite.beforeall;enlist ".";"BEFOREALL")) };
+  all not[r],
+      (.executeSuite.executeTest_log ~ ();
+      (.executeSuite.executeSpecial_log ~ enlist (.executeSuite.beforeall;enlist ".";"BEFOREALL"))) };
 
 executeSuite_invalidbasepath:{[]
   .executeSuite.setup[];
   .tree.getLeaves::{[tree;path] '"tree: invalid path"};
   
-  r:.qtb.priv.executeSuite[0b;`a`b;();();`path];
+  r:.qtb.priv.executeSuite[0b;`a`b;();();(`$())!();`path];
   
   .executeSuite.restore[];
   (0b ~ r) and (.executeSuite.executeTest_log ~ ()) and (.executeSuite.executeSpecial_log ~ ()) };
@@ -401,7 +404,7 @@ executeSuite_getleaves_exception:{[]
   .executeSuite.setup[];
   .tree.getLeaves::{[tree;path] '"poof"};
   
-  r:.test.checkException[.qtb.priv.executeSuite;(0b;`a`b;();();`path);"poof"];
+  r:.test.checkException[.qtb.priv.executeSuite;(0b;`a`b;();();(`$())!();`path);"poof"];
   
   .executeSuite.restore[];
   (1b ~ r) and (.executeSuite.executeTest_log ~ ()) and (.executeSuite.executeSpecial_log ~ ()) };
@@ -414,76 +417,116 @@ executeSuite_followpath:{[]
                           '"invalid path"] };
   .tree.getBranches::{[tree;path] ()};
 
-  r:.qtb.priv.executeSuite[0b;`pa`th`suite;();();`pa`th];
+  r:.qtb.priv.executeSuite[0b;`pa`th`suite;();();(`$())!();`pa`th];
   
   .executeSuite.restore[];
-  (enlist[0b] ~ r)
-    and (.executeSuite.executeTest_log ~ enlist (0b;enlist[(::)];enlist[(::)];".pa.th.suite";`name`func!(`testa;.executeSuite.testa)))
-    and (.executeSuite.executeSpecial_log ~
+  all not[r],
+      (.executeSuite.executeTest_log ~ enlist (0b;enlist[(::)];enlist[(::)];".pa.th.suite";(`$())!();`name`func!(`testa;.executeSuite.testa));
+      (.executeSuite.executeSpecial_log ~
                        ((();".pa.th";"BEFOREALL");
                         enlist ((::);".pa.th.suite";"BEFOREALL");
                         enlist ((::);".pa.th.suite";"AFTERALL");
-                        (();".pa.th";"AFTERALL")))  };
+                        (();".pa.th";"AFTERALL"))))  };
 
 executeSuite_single:{[]
   .executeSuite.setup[];
   .tree.getLeaves:{[tree;path] (enlist `testa)!enlist .executeSuite.testa};
   
-  r:.qtb.priv.executeSuite[0b;`pa`th`testa;();();`pa`th];
+  r:.qtb.priv.executeSuite[0b;`pa`th`testa;();();(`$())!();`pa`th];
   
   .executeSuite.restore[];
-  (r ~ 0b)
-    and (.executeSuite.executeTest_log ~ enlist (0b;enlist[(::)];enlist[(::)];".pa.th";`name`func!(`testa;.executeSuite.testa)))
-    and (.executeSuite.executeSpecial_log ~ (((::);".pa.th";"BEFOREALL");((::);".pa.th";"AFTERALL")))  };
+  all not[r],
+      (.executeSuite.executeTest_log ~ enlist (0b;enlist[(::)];enlist[(::)];".pa.th";(`$())!();`name`func!(`testa;.executeSuite.testa));
+      (.executeSuite.executeSpecial_log ~ (((::);".pa.th";"BEFOREALL");((::);".pa.th";"AFTERALL"))))  }
   
 
 executeSuite_SUITE:`executeSuite_base`executeSuite_recurse`executeSuite_beforeallfail,
                    `executeSuite_invalidbasepath`executeSuite_getleaves_exception,
                    `executeSuite_followpath`executeSuite_single;
 
+executeTestN_stdOverrides:{[]
+  .orig.catchX:.qtb.catchX;
+  .qtb.catchX::{[f;a] (`success;1b)};
+ 
+  .orig.resetFuncallLog:.qtb.resetFuncallLog;
+  .test.resetFuncallLog_calls:0;
+  .qtb.resetFuncallLog::{[] .test.resetFuncallLog_calls+:1;};
+
+  .orig.applyOverrides:.qtb.priv.applyOverrides;
+  .test.applyOverrides_calls::();
+  .qtb.priv.applyOverrides:{[x] .test.applyOverrides_calls,:enlist x; ([] vname:`$(); origValue:(); undef:`boolean$())};
+
+  .test.revertOverrides_calls:();
+  .orig.revertOverrides:.qtb.priv.revertOverrides;
+  .qtb.priv.revertOverrides:{.test.revertOverrides_calls,:enlist x;};
+  };
+
+executeTestN_resetStdOverrides:{[]
+  .qtb.catchX:.orig.catchX;
+  .qtb.resetFuncallLog:.orig.resetFuncallLog;
+  .qtb.priv.applyOverrides:.orig.applyOverrides;
+  .qtb.priv.revertOverrides:.orig.revertOverrides;
+  };
 
 executeTestN_success:{[]
-  catchX_orig:.qtb.catchX;
-  .qtb.catchX::{[f;a] (`success;1b)};
-  r:.qtb.priv.executeTest[0b;();();"executeTestN";`name`func!(`success;{})];
-  .qtb.catchX::catchX_orig;
-  r };
+  executeTestN_stdOverrides[];
+  r:.qtb.priv.executeTest[0b;();();"executeTestN";(`$())!();`name`func!(`success;{})];
+  executeTestN_resetStdOverrides[];
+  all (r;
+       1 = .test.resetFuncallLog_calls;
+       .test.applyOverrides_calls ~ enlist (`$())!();
+       .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$())) };
 
 executeTestN_fail:{[]
-  catchX_orig:.qtb.catchX;
+  executeTestN_stdOverrides[];
   .qtb.catchX::{[f;a] (`success;0b)};
-  r:.qtb.priv.executeTest[0b;();();"executeTestN";`name`func!(`fail;{})];
-  .qtb.catchX::catchX_orig;
-  not r };
+  r:.qtb.priv.executeTest[0b;();();"executeTestN";(`$())!();`name`func!(`fail;{})];
+  executeTestN_resetStdOverrides[];
+  all (not r;
+       1 = .test.resetFuncallLog_calls;
+       .test.applyOverrides_calls ~ enlist (`$())!();
+       .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$())) };
 
 executeTestN_exception:{[]
-  catchX_orig:.qtb.catchX;
+  executeTestN_stdOverrides[];
   .qtb.catchX::{[f;a] (`exceptn;"poof")};
-  r:.qtb.priv.executeTest[0b;();();"executeTestN";`name`func!(`exception;{})];
-  .qtb.catchX::catchX_orig;
-  not r };
+  r:.qtb.priv.executeTest[0b;();();"executeTestN";(`$())!();`name`func!(`exception;{})];
+  executeTestN_resetStdOverrides[];
+  all (not r;
+       1 = .test.resetFuncallLog_calls;
+       .test.applyOverrides_calls ~ enlist (`$())!();
+       .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$())) };
 
 executeTestN_other:{[]
-  catchX_orig:.qtb.catchX;
+ executeTestN_stdOverrides[];
   .qtb.catchX::{[f;a] (`success;42)};
-  r:.test.checkException[.qtb.priv.executeTest;(0b;();();"executeTestN";`name`func!(`other;{}));"qtb: unexpected test result"];
-  .qtb.catchX::catchX_orig;
-  not r };
+  r:.test.checkException[.qtb.priv.executeTest;(0b;();();"executeTestN";(`$())!();`name`func!(`other;{}));"qtb: unexpected test result"];
+  executeTestN_resetStdOverrides[];
+  all (not r;
+       1 = .test.resetFuncallLog_calls;
+       .test.applyOverrides_calls ~ enlist (`$())!();
+       .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$())) };
 
-executeTestN_nocatch_success:{[] .qtb.priv.executeTest[1b;();();"executeTestN";`name`func!(`debug;{[] 1b})] };
+executeTestN_nocatch_success:{[]
+  executeTestN_stdOverrides[];
+  r:.qtb.priv.executeTest[1b;();();"executeTestN";(`$())!();`name`func!(`debug;{[] 1b})];
+  executeTestN_resetStdOverrides[];
+  r };
 
 executeTestN_nocatch_exception:{[]
-  .test.checkException[.qtb.priv.executeTest;(1b;();();"executeTestN";`name`func!(`debug;{[] '"jump!"}));"jump"] };
+  executeTestN_stdOverrides[];
+  r:.test.checkException[.qtb.priv.executeTest;(1b;();();"executeTestN";(`$())!();`name`func!(`debug;{[] '"jump!"}));"jump"];
+  executeTestN_resetStdOverrides[];
+  r };
 
-executeTestN_notafunc:{[] not .qtb.priv.executeTest[0b;();();"executeTestN";`name`func!(`notafunc;42)] };
+executeTestN_notafunc:{[] not .qtb.priv.executeTest[0b;();();"executeTestN";(`$())!();`name`func!(`notafunc;42)] };
 
-executeTestN_toomanyargs:{[] not .qtb.priv.executeTest[0b;();();"executeTestN";`name`func!(`toomanyargs;{x+y})] };
+executeTestN_toomanyargs:{[] not .qtb.priv.executeTest[0b;();();"executeTestN";(`$())!();`name`func!(`toomanyargs;{x+y})] };
 
 .executeTestN.executeSpecial_log:();
 
 executeTestN_beforeandafter:{[]
-  catchX_orig:.qtb.catchX;
-  .qtb.catchX::{[f;a] (`success;1b)};
+  executeTestN_stdOverrides[];
   .executeTestN.executeSpecial_log::();
   executeSpecial_orig:.qtb.priv.executeSpecial;
   .qtb.priv.executeSpecial:{[f;n;t] .executeTestN.executeSpecial_log,::enlist (f;n;t); 1b};
@@ -491,16 +534,15 @@ executeTestN_beforeandafter:{[]
   beforeeaches:({[] `beforeeach_1};{[] `beforeeach_2};{[] `beforeeach_3});
   aftereaches:({[] `aftereach_1};{[] `aftereach_2});
  
-  r:.qtb.priv.executeTest[0b;beforeeaches;aftereaches;"executeTestN";`name`func!(`beforeandafter;{[] 0b})];
-  .qtb.catchX::catchX_orig;
-  .qtb.priv.executeSpecial::executeSpecial_orig;
+  r:.qtb.priv.executeTest[0b;beforeeaches;aftereaches;"executeTestN";(`$())!();`name`func!(`beforeandafter;{[] 0b})];
+  executeTestN_resetStdOverrides[];
   testname:"executeTestN.beforeandafter";
+  .qtb.priv.executeSpecial:executeSpecial_orig;
   r and .executeTestN.executeSpecial_log ~
         ((;testname;"BEFOREEACH") each beforeeaches),(;testname;"AFTEREACH") each aftereaches };
 
 executeTestN_notest_beforeeacherr:{[]
-  catchX_orig:.qtb.catchX;
-  .qtb.catchX::{[f;a] (`success;42)};
+  executeTestN_stdOverrides[];
   .executeTestN.executeSpecial_log::();
   executeSpecial_orig:.qtb.priv.executeSpecial;
   .qtb.priv.executeSpecial:{[f;n;t] .executeTestN.executeSpecial_log,::enlist (f;n;t); not f ~ {[] '"dingdong"} };
@@ -508,9 +550,9 @@ executeTestN_notest_beforeeacherr:{[]
   beforeeaches:({[] `beforeeach_1};{[] '"dingdong"};{[] `beforeeach_3});
   aftereaches:({[] `aftereach_1};{[] `aftereach_2});
  
-  r:.qtb.priv.executeTest[0b;beforeeaches;aftereaches;"executeTestN";`name`func!(`notest_beforeerr;{[] 1b})];
-  .qtb.catchX::catchX_orig;
+  r:.qtb.priv.executeTest[0b;beforeeaches;aftereaches;"executeTestN";(`$())!();`name`func!(`notest_beforeerr;{[] 1b})];
   .qtb.priv.executeSpecial::executeSpecial_orig;
+  executeTestN_resetStdOverrides[];
  
   (not r) and .executeTestN.executeSpecial_log ~ (;"executeTestN.notest_beforeerr";"BEFOREEACH") each beforeeaches };
 
