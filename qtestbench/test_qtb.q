@@ -623,7 +623,68 @@ restoreValue_invalidvar:{[]
 
 restoreValue_SUITE:`restoreValue_base`restoreValue_invalidvar;
 
+applyOverrides_all:{[]
+  applyOverride_orig:.qtb.priv.applyOverride; 
+  .qtb.priv.applyOverride:{[vn;vv] applyOverride_log,::enlist (vn;vv); `vname`origValue`undef!(vn;42;0b)};
+  applyOverride_log::();
+  r1:.qtb.priv.applyOverrides `a`b`c!(`x;42;"lo");
+  log1:applyOverride_log;
+  applyOverride_log::();
+  r2:.qtb.priv.applyOverrides .qtb.priv.genDict;
+  .qtb.priv.applyOverride::applyOverride_orig;
+  :all (r1 ~ ([] vname:`a`b`c; origValue:42 42 42; undef:000b);(`a`x;(`b;42);(`c;"lo")) ~ log1;
+        r2 ~ ();applyOverride_log ~ ());
+ 
+  };
+
+applyOverride_all:{[]
+  OVERRIDETARGET1::42;
+  r1:.qtb.priv.applyOverride[`OVERRIDETARGET1;`hello];
+  r2:.qtb.priv.applyOverride[`OVERRIDETARGET2;`hello];
+  .test.OVERRIDETARGET1::43;
+  r3:.qtb.priv.applyOverride[`.test.OVERRIDETARGET1;`hello];
+  r4:.qtb.priv.applyOverride[`.test.OVERRIDETARGET2;`hello];
+  checkvalue:{[vn;val] $[() ~ key vn;0b;val ~ value vn]};
+  tr:all (r1 ~ `vname`origValue`undef!(`OVERRIDETARGET1;42;0b);
+          checkvalue[`OVERRIDETARGET1;`hello];
+          r2 ~ `vname`origValue`undef!(`OVERRIDETARGET2;(::);1b);
+          checkvalue[`OVERRIDETARGET2;`hello];
+          r3 ~ `vname`origValue`undef!(`.test.OVERRIDETARGET1;43;0b);
+          checkvalue[`.test.OVERRIDETARGET1;`hello];
+          r4 ~ `vname`origValue`undef!(`.test.OVERRIDETARGET2;(::);1b);
+          checkvalue[`.test.OVERRIDETARGET2;`hello]);
+  delete OVERRIDETARGET1 from `.;
+  delete OVERRIDETARGET2 from `.;
+  delete OVERRIDETARGET1 from `.test;
+  delete OVERRIDETARGET2 from `.test;
+  :tr;
+  };
+
+revertOverride_all:{[]
+  OVERRIDETARGET1::42;
+  OVERRIDETARGET2::`xxx;
+  .z.exit:{[] 0N!`exit;};
+  .test.OTGT1:`a`b`c;
+  .test.sctx.OTGT2:{};
+  .qtb.priv.revertOverride[`OVERRIDETARGET1;0;0b];
+  .qtb.priv.revertOverride[`.z.exit;42;0b];
+  .qtb.priv.revertOverride[`.test.OTGT1;"lolo";0b];
+  .qtb.priv.revertOverride[`.test.sctx.OTGT2;([] c:1 2);0b];
+  alltgts:`OVERRIDETARGET1`OVERRIDETARGET2`.z.exit`.test.OTGT1`.test.sctx.OTGT2;
+  rvals1:get each alltgts;
+  .qtb.priv.revertOverride[;(::);1b] each alltgts;
+  undefs:key each alltgts;
+  delete OVERRIDETARGET1 from `.;
+  delete OVERRIDETARGET2 from `.;
+  system "x .z.exit";
+  delete OTGT1 from `.test;
+  delete OTGT2 from `.test.sctx;
+  :all (rvals1 ~' (0;`xxx;42;"lolo";([] c:1 2))),undefs ~' (count alltgts)#enlist ();
+  };
+
+
 ALLTESTS:countargs_SUITE,wrapLogCall_SUITE,isEmptyFunc_SUITE,executeSuite_SUITE,
          executeTestN_SUITE,privExecuteN_SUITE,execute_SUITE,`logFuncall_all,
-         checkX_SUITE,catchX_SUITE,executeSpecial_SUITE,saveValue_SUITE,restoreValue_SUITE;
+         checkX_SUITE,catchX_SUITE,executeSpecial_SUITE,saveValue_SUITE,restoreValue_SUITE,
+         `applyOverrides_all`applyOverride_all`revertOverride_all;
 

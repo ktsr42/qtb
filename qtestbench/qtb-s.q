@@ -160,20 +160,21 @@ priv.execute:{[catchX;basepath]
 
 priv.applyOverride:{[vname;newval]
   currval:$[undef:() ~ key vname;(::);eval vname];
+  vname set newval;
   :`vname`origValue`undef!$[undef;(vname;(::);1b);(vname;currval;0b)];
   };
 
 priv.applyOverrides:{[od]
   if[od ~ priv.genDict;:()];
-  :priv.applyOverride . flip (key;value)@\: ` _ od;
+  :priv.applyOverride ./: flip (key;value)@\: ` _ od;
   };
 
 priv.revertOverride:{[vname;val;undef]
   if[not undef; vname set val; :(::)];
   // take care of deleting undefined variables
-  if[2 > sum "." ~/: string vname;![`.;();0b;en vname]; :(::)];
-  if[vname in priv.Expungable;system "x ",string vname];
-  {![x;();0b;en y]} . `${"." sv/: (x 0 1;2 _x)} "." vs string  vname;
+  if[2 > sum "." ~/: string vname;![`.;();0b;enlist vname]; :(::)];
+  if[vname in priv.Expungable;system "x ",string vname; :(::)];
+  {![x;();0b;enlist y]} . `${("." sv -1 _ x;last x)} "." vs string  vname;
   };
 
 priv.revertOverrides:{[overrides] {[d] priv.revertOverride . d`vname`value`undef} each overrides; }
