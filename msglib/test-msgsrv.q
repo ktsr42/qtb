@@ -5,58 +5,39 @@
 
 // --- registerClient is trivial
 
+.qtb.setOverrides[`;enlist[`lg]!enlist .qtb.wrapLogCall[`lg;{[msg]}]];
+
 // *** processRegistration
 .qtb.suite`processRegistration;
-
-.qtb.addBeforeAll[`processRegistration;{[]
-  isValidConnHandle_ORIG::isValidConnHandle;
-  isValidConnHandle::{[ignore] 1b};
-  lg_ORIG::lg;
-  lg::.qtb.wrapLogCall[`lg;{[msg] }];
-  }];
-
-.qtb.addAfterAll[`processRegistration;{[]
-  isValidConnHandle::isValidConnHandle_ORIG;
-  lg::lg_ORIG
-  }];
-
-.qtb.addBeforeEach[`processRegistration;{[]
-  CONNSorig::CONNS; CONNS::0#CONNS;
-  .qtb.resetFuncallLog[];
-  }];
-
-.qtb.addAfterEach[`processRegistration;{[] CONNS::CONNSorig; }];
+.qtb.setOverrides[`processRegistration;`isValidConnHandle`CONNS!({[ignore] 1b};0#CONNS)];
 
 .qtb.addTest[`processRegistration`successful_add;{[]
   r:processRegistration[22;`me];
-  checks:(("CONNS table";([primaryAddress:el `me] clientHandle:el 22);CONNS);
+  checks:(("CONNS table";([primaryAddress:el `me] clientHandle:el 22i);CONNS);
           ("logging calls";([] functionName:``lg; arguments:((::);"Registering client with primary address me"));.qtb.getFuncallLog[]));
   all r,.qtb.matchValue ./: checks }];
 
 .qtb.addTest[`processRegistration`duplicate;{[]
-  CONNS::([primaryAddress:el `me] clientHandle:el 22);
+  .qtb.override[`CONNS;([primaryAddress:el `me] clientHandle:el 22)];
   r:processRegistration[22;`me];
   checks:(("CONNS table";([primaryAddress:el `me] clientHandle:el 22);CONNS);
           ("logging calls";([] functionName:``lg; arguments:((::);"Re-registration from client me"));.qtb.getFuncallLog[]));
   all r,.qtb.matchValue ./: checks}];
 
 .qtb.addTest[`processRegistration`replace;{[]
-  CONNS::([primaryAddress:el `me] clientHandle:el 22);
-  connectionDroppedOrig:connectionDropped;
-  connectionDropped::.qtb.wrapLogCall[`connectionDropped;{[conn]}];
-  isValidConnHandle::{[ignore] 0b};
+  .qtb.override[`CONNS;([primaryAddress:el `me] clientHandle:el 22)];
+  .qtb.override[`connectionDropped;.qtb.wrapLogCall[`connectionDropped;{[conn]}]];
+  .qtb.override[`isValidConnHandle;{[ignore] 0b}];
   r:processRegistration[23;`me];
   checks:(("CONNS table";([primaryAddress:el `me] clientHandle:el 23);CONNS);
           ("Function calls";
           ([] functionName:``lg`connectionDropped;
               arguments:((::);"Warning: Found invalid handle for primary address me, replacing registration";22));
           .qtb.getFuncallLog[]));
-  connectionDropped::connectionDroppedOrig;
-  isValidConnHandle::{[ignore] 1b};
   all r,.qtb.matchValue ./: checks }];
 
 .qtb.addTest[`processRegistration`clash;{[]
-  CONNS::conns:([primaryAddress:el `me] clientHandle:el 22);
+  .qtb.override[`CONNS;conns:([primaryAddress:el `me] clientHandle:el 22)];
  
   r:processRegistration[33;`me]; 
   checks:(("CONNS table";conns;CONNS);
@@ -73,28 +54,9 @@
 
 // *** sendMessage
 .qtb.suite`sendMessage;
-
-.qtb.addBeforeAll[`sendMessage;{[]
-  CONNS_orig::CONNS;
-  lg_ORIG::lg;
-  lg::.qtb.wrapLogCall[`lg;{[msg] }];
-  isRegisteredClient_orig::isRegisteredClient;
-  isRegisteredClient::.qtb.wrapLogCall[`isRegisteredClient;{[h;srca] 1b}];
-  submitMessage_orig::submitMessage;
-  submitMessage::.qtb.wrapLogCall[`submitMessage;{[msg;clAddr;clHandle]}];
-  }];
-
-.qtb.addAfterAll[`sendMessage;{[]
-  lg::lg_ORIG;
-  CONNS::CONNS_orig;
-  isRegisteredClient::isRegisteredClient_orig;
-  submitMessage::submitMessage_orig;
-  }];
-
-.qtb.addBeforeEach[`sendMessage;{[] .qtb.resetFuncallLog[]; }];
+.qtb.setOverrides[`sendMessage;`CONNS`isRegisteredClient`submitMessage!(([primaryAddress:`me`you] clientHandle:10 11);.qtb.wrapLogCall[`isRegisteredClient;{[h;srca] 1b}];.qtb.wrapLogCall[`submitMessage;{[msg;clAddr;clHandle]}])];
 
 .qtb.addTest[`sendMessage`aok;{[]
-  CONNS::([primaryAddress:`me`you] clientHandle:10 11);
   sendMessage[10;`me;`you;"are you ok?"];
   .qtb.matchValue["Call log";
     ([] functionName:``lg`isRegisteredClient`submitMessage`lg;
@@ -107,7 +69,6 @@
 
 
 .qtb.addTest[`sendMessage`notok;{[]
-  CONNS::([primaryAddress:`me`you] clientHandle:10 11);
   sendMessage[10;`me;`him;"are you ok?"];
   .qtb.matchValue["Call log";
      ([] functionName:``lg`isRegisteredClient`lg;
@@ -115,11 +76,8 @@
      .qtb.getFuncallLog[]] }];
 
 .qtb.addTest[`sendMessage`notregistered;{[]
-  CONNS::([primaryAddress:`me`you] clientHandle:10 11);
-  isRegClient_ORIG:isRegisteredClient;
-  isRegisteredClient::.qtb.wrapLogCall[`isRegisteredClient;{[h;ca] 0b}];
+  .qtb.override[`isRegisteredClient;.qtb.wrapLogCall[`isRegisteredClient;{[h;ca] 0b}]];
   sendMessage[10;`me;`him;"are you ok?"];
-  isRegisteredClient::isRegClient_ORIG;
   .qtb.matchValue["Call log";
      ([] functionName:``lg`isRegisteredClient;
          arguments:((::);"Message from me to him received: \"are you ok?\"";(10;`me)));
@@ -128,25 +86,15 @@
 
 // *** submitMessage
 .qtb.suite`submitMessage;
-
-.qtb.addBeforeAll[`submitMessage;{[]
-  send_orig::send;
-  send::.qtb.wrapLogCall[`send;{[h;m]}];
-  lg_orig::lg;
-  lg::.qtb.wrapLogCall[`lg;{[msg]}]; }];
-
-.qtb.addAfterAll[`submitMessage;{[] send::send_orig; lg::lg_orig; }];
-.qtb.addBeforeEach[`submitMessage;{[] .qtb.resetFuncallLog[]; }];
+.qtb.setOverrides[`submitMessage;enlist[`send]!enlist .qtb.wrapLogCall[`send;{[h;m]}]];
 
 .qtb.addTest[`submitMessage`ok;{[]
   submitMessage["ayt?";`aclient;10];
   .qtb.matchValue["Call log";([] functionName:``send; arguments:((::);(10;"ayt?")));.qtb.getFuncallLog[]]} ];
 
 .qtb.addTest[`submitMessage`fail;{[]
-  send_orig:send;
-  send::.qtb.wrapLogCall[`send;{[h;msg] '"oops!"}];
+  .qtb.override[`send;.qtb.wrapLogCall[`send;{[h;msg] '"oops!"}]];
   submitMessage["dang!";`badboy;11];
-  send::send_orig;
   .qtb.matchValue["Call log";
                   ([] functionName:``send`lg; arguments:((::);(11;"dang!");"Failed to send message to client badboy: oops!"));
                   .qtb.getFuncallLog[]]} ];
@@ -154,16 +102,7 @@
 // *** confirmRegisteredClient
 .qtb.suite`isRegisteredClient;
 
-.qtb.addBeforeAll[`isRegisteredClient;{[]
-  lg_orig::lg;
-  lg::.qtb.wrapLogCall[`lg;{[msg]}];
-  CONNSorig::CONNS;
-  CONNS::(0#CONNS) upsert (`him;42);
-  }];
-
-.qtb.addAfterAll[`isRegisteredClient;{[] lg::lg_orig; CONNS::CONNSorig }];
-
-.qtb.addBeforeEach[`isRegisteredClient;{[] .qtb.resetFuncallLog[]; }];
+.qtb.setOverrides[`isRegisteredClient;enlist[`CONNS]!enlist (0#CONNS) upsert (`him;42)];
 
 .qtb.addTest[`isRegisteredClient`ok;{[] isRegisteredClient[42;`him] }];
 .qtb.addTest[`isRegisteredClient`unreg;{[]
@@ -180,47 +119,30 @@
 
 // *** connectionDropped
 .qtb.suite`connectionDropped;
-
-.qtb.addBeforeAll[`connectionDropped;{[]
-  lg_orig::lg;
-  lg::.qtb.wrapLogCall[`lg;{[msg]}];
-  CONNSorig::CONNS;
-  }];
-
-.qtb.addAfterAll[`connectionDropped;{[] lg::lg_orig; CONNS::CONNSorig }];
-
-.qtb.addBeforeEach[`connectionDropped;{[] 
-  CONNS::(0#CONNS) upsert (`him;42);
-  .qtb.resetFuncallLog[];
-  }];
+.qtb.setOverrides[`connectionDropped;enlist[`CONNS]!enlist (0#CONNS) upsert (`him;42i)];
 
 .qtb.addTest[`connectionDropped`validhandle;{[]
-  connectionDropped[42];
+  connectionDropped 42i;
   r:0 = count exec primaryAddress from CONNS where clientHandle = 42;
   r and .qtb.matchValue["Call log";([] functionName:``lg; arguments:((::);"Client him closed the connection"));.qtb.getFuncallLog[]] }];
 
 .qtb.addTest[`connectionDropped`invalidhandle;{[]
-  connectionDropped[100];
+  connectionDropped 100i;
   (1 = count select from CONNS where primaryAddress = `him,clientHandle = 42)
   and .qtb.matchValue["Call log";.qtb.emptyFuncallLog[];.qtb.getFuncallLog[]] }];
 
+.qtb.addTest[`connectionDropped`sanitycheck;{[]
+  .qtb.override[`CONNS;([primaryAddress:`a`b]; clientHandle:3 3i)];
+  .qtb.override[`die;.qtb.wrapLogCall[`die;{[m]}]];
+  connectionDropped 3i;
+  :.qtb.getFuncallLog[] ~ ([] functionName:``die`lg; arguments:((::);"Corrupt connection tracking";"Client a closed the connection"));
+  }];
 
 // *** receiveMsg
 
 .qtb.suite`receiveMsg;
-.qtb.addBeforeAll[`receiveMsg;{[]
-  lg_orig::lg;
-  lg::.qtb.wrapLogCall[`lg;{[msg]}];
-  dispatch_call_orig::.dispatch.call;
-  .dispatch.call::.qtb.wrapLogCall[`.dispatch.call;{[args]}];
-  }];
 
-.qtb.addAfterAll[`receiveMsg;{[]
-  .dispatch.call::dispatch_call_orig;
-  lg::lg_orig;
-  }];
-
-.qtb.addBeforeEach[`receiveMsg;{[] .qtb.resetFuncallLog[]; }];
+.qtb.setOverrides[`receiveMsg;enlist[`.dispatch.call]!enlist .qtb.wrapLogCall[`.dispatch.call;{[args]}]];
 
 .qtb.addTest[`receiveMsg`ok;{[]
   receiveMsg[10;(`afunc;`arg)];
@@ -234,10 +156,8 @@
                    .qtb.getFuncallLog[]]}];
 
 .qtb.addTest[`receiveMsg`error;{[]
-  dispatch_call_orig:.dispatch.call;
-  .dispatch.call::.qtb.wrapLogCall[`.dispatch.call;{[req] '"whoops!"}];
+  .qtb.override[`.dispatch.call;.qtb.wrapLogCall[`.dispatch.call;{[req] '"whoops!"}]];
   receiveMsg[3;(`afunc;`xx)];
-  .dispatch.call::dispatch_call_orig;
   .qtb.matchValue["Function call log";
                   ([] functionName:``lg`.dispatch.call`lg`lg;
                       arguments:((::);
@@ -250,7 +170,7 @@
 .qtb.addTest[`receiveMsg`string;{[]
   receiveMsg[13;"afunc[`arg]"];
   .qtb.matchValue["Function call log";
-                  EL::([] functionName:``lg`.dispatch.call`lg`lg;
+                  ([] functionName:``lg`.dispatch.call`lg`lg;
                       arguments:((::);
                                  "Received msg \"afunc[`arg]\"";
                                  (`afunc;13;enlist `arg);

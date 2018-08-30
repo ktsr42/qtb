@@ -99,7 +99,7 @@ priv.executeSuite:{[nocatch;basePath;be;ae;ovrr;currPath]
   mpl:min (bpl;cpl);
   if[not (mpl#basePath) ~ mpl#currPath; '"qtb: invalid test path"];  // sanity check: the current path is within the base path
   
-  tests:key[leaves] except priv.Tags;
+  tests:key[leaves] except priv.Tags,`;
   nextNode:first mpl _ basePath;
  
   results:$[(bpl = cpl + 1) and nextNode in tests;  // basePath resolves to a single test (leaf)
@@ -177,7 +177,7 @@ priv.revertOverride:{[vname;val;undef]
   {![x;();0b;enlist y]} . `${("." sv -1 _ x;last x)} "." vs string  vname;
   };
 
-priv.revertOverrides:{[overrides] {[d] priv.revertOverride . d`vname`value`undef} each overrides; }
+priv.revertOverrides:{[overrides] {[d] priv.revertOverride . d`vname`origValue`undef} each overrides; }
 
 // Public Interface
 
@@ -196,10 +196,10 @@ addBeforeAll:priv.addSpecial[priv.BeforeAllTag;;];
 addBeforeEach:priv.addSpecial[priv.BeforeEachTag;;];
 addAfterEach:priv.addSpecial[priv.AfterEachTag;;];
 addAfterAll:priv.addSpecial[priv.AfterAllTag;;];
-overrides:priv.addSpecial[priv.OverrideTag;;];
+setOverrides:priv.addSpecial[priv.OverrideTag;;];
 
-execute:priv.execute[1b;];
-executeDebug:priv.execute[0b;];
+execute:priv.execute[0b;];
+executeDebug:priv.execute[1b;];
 
 // Helper functions for writing tests
 

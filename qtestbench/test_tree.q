@@ -198,10 +198,10 @@ foreachBranch_exception:{[]
 foreachBranch_suite:`foreachBranch_Tree1Full`foreachBranch_lookupFunc`foreachBranch_nobranch,
                     `foreachBranch_invalidPath`foreachBranch_nodescent`foreachBranch_exception;
 
-getLeaves_three:{[] (`oakleaf`acornleaf`appleleaf!12 13 14) ~ .tree.getLeaves[Tree2;`rootbranch] };
-getLeaves_deep:{[] (enlist[`tealeaf]!enlist[42]) ~ .tree.getLeaves[Tree2;`test`test] };
+getLeaves_three:{[] (``oakleaf`acornleaf`appleleaf!((::);12;13;14)) ~ .tree.getLeaves[Tree2;`rootbranch] };
+getLeaves_deep:{[] (``tealeaf!((::);42)) ~ .tree.getLeaves[Tree2;`test`test] };
 getLeaves_nobranch:{[] .test.checkException[.tree.getLeaves;(Tree2;`test`test`tealeaf);"tree: not a branch"] };
-getLeaves_none:{[] ((`$())!()) ~ .tree.getLeaves[Tree2;`test`sidebranch] };
+getLeaves_none:{[] (enlist[`]!enlist(::)) ~ .tree.getLeaves[Tree2;`test`sidebranch] };
 
 getLeaves_suite:`getLeaves_three`getLeaves_deep`getLeaves_nobranch`getLeaves_none;
 

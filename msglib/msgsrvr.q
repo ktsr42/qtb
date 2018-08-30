@@ -70,9 +70,9 @@ isValidConnHandle:{x in key .z.W};
 
 connectionDropped:{[handle]
   primAddresses:exec primaryAddress from CONNS where clientHandle = handle;
-  $[0 > count primAddresses; die "Unexpected result from select in connectionDropped";
-    1 < count primAddresses; die "Corrupt connection tracking";
-    0 = count primAddresses; :(::)]; // unregistered client, nothing to do
+  if[0 > c:count primAddresses; die "Unexpected result from select in connectionDropped"];
+  if[1 < c;                     die "Corrupt connection tracking"];
+  if[0 = c;                     :(::)];  // unknown handle, nothing to do 
   
   // if we reach this point, we have a valid client connection
   primAddr:first primAddresses;
