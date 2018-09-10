@@ -682,9 +682,42 @@ revertOverride_all:{[]
   :all (rvals1 ~' (0;`xxx;42;"lolo";([] c:1 2))),undefs ~' (count alltgts)#enlist ();
   };
 
+testf1:{[] 42};
+testf2:{(`f1;x)};
+testf3:{(`f2;x;y)};
+
+callLog_all:{[]
+  .qtb.resetFuncallLog[]; 
+  r11:(.qtb.callLog[`testf1;(::)])[]; 
+  r12:(.qtb.callLog[`testf1;`x])[];
+  r13:(.qtb.callLog[`testf1;{(`a;x)}])[];
+  e1:.[.qtb.callLog;(`testf1;{x+y});(::)];
+  r21:(.qtb.callLog[`testf2;([] c:1 2 3)])[3];
+  r22:(.qtb.callLog[`testf2;{(`b;x)}])[4];
+  r23:(.qtb.callLog[`testf2;{(`b;x)}])[(`x;4)];
+  e2:.[.qtb.callLog;(`testf2;{x+y});(::)];
+  r31:(.qtb.callLog[`testf3;`a`b!1 2])[`x;2];
+  r32:(.qtb.callLog[`testf3;{(`x;x;y)}])[`x;2];
+  r33::(.qtb.callLog[`testf3;{(`x;x;y)}])[1 2;`x`y];
+  e3:.[.qtb.callLog;(`testf3;{x+y+z});(::)];
+  exp_callLog:([] functionName:``testf1`testf1`testf1`testf2`testf2`testf2`testf3`testf3`testf3;
+                   arguments:(::),enlist'[((::);(::);(::);3;4)],((`x;4);(`x;2);(`x;2);(1 2;`x`y)));
+  :all (r11 ~ (::);
+        r12 ~ `x;
+        r13 ~ (`a;(),(::));
+        r21 ~ ([] c:1 2 3);
+        r22 ~ (`b;enlist 4);
+        r23 ~ (`b;(`x;4));
+        r31 ~ `a`b!1 2;
+        r32 ~ (`x;`x;2);
+        r33 ~ (`x;1 2;`x`y)),
+        ((e1;e2;e3) ~\: "argument count does not match"),
+       enlist exp_callLog ~ .qtb.getFuncallLog[];
+  };
+
 
 ALLTESTS:countargs_SUITE,wrapLogCall_SUITE,isEmptyFunc_SUITE,executeSuite_SUITE,
          executeTestN_SUITE,privExecuteN_SUITE,execute_SUITE,`logFuncall_all,
          checkX_SUITE,catchX_SUITE,executeSpecial_SUITE,saveValue_SUITE,restoreValue_SUITE,
-         `applyOverrides_all`applyOverride_all`revertOverride_all;
+         `applyOverrides_all`applyOverride_all`revertOverride_all`callLog_all;
 

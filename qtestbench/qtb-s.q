@@ -267,6 +267,20 @@ wrapLogCall:{[name;func]
                               " (",tail,") . argl}"];
                   '"Invalid or unsupported number of arguments"] };
 
+callLogComplex:{[fname;rvof;nargs]
+  numargs:$[nargs within 1 8;nargs;countargs value fname];
+  if[not numargs within 1 8;'"Invalid or unsupported number of arguments"];
+  if[all (99h<;101h <>) @\: type rvof;if[numargs <> countargs rvof;'"argument count does not match"]];
+  rs:"-9!0x",(raze string -8! rvof);
+  rvs:$[any (100h>;101h=) @\: type rvof;rs;"value enlist[",rs,"],",$[1 = numargs;"enlist[args]";"args"]];
+  arglist:";" sv string numargs#(`$)'[.Q.a]; 
+  :value "{[",arglist,"] args:(),(",arglist,"); .qtb.logFuncall[`",string[fname],";args];",rvs,"}";
+  };
+ 
+callLog:callLogComplex[;;0N];
+
+callLogS:callLogComplex[;(::);0N];
+
 countargs:{[fp]
   if[100 > type fp; :-1];  // not a function
   mfp:value fp;
@@ -276,7 +290,6 @@ countargs:{[fp]
   // compute the number of arguments of a projection:
   // (num args of base function) less number of arguments provided in the projection
   (count (value basef) 1) - sum not (::) ~/: 1 _ mfp };
-
 
 
 priv.SAVEDVALUES:enlist[`]!enlist (::);

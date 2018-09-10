@@ -5,7 +5,7 @@
 
 // --- registerClient is trivial
 
-.qtb.setOverrides[`;enlist[`lg]!enlist .qtb.wrapLogCall[`lg;{[msg]}]];
+.qtb.setOverrides[`;enlist[`lg]!enlist .qtb.callLogS`lg];
 
 // *** processRegistration
 .qtb.suite`processRegistration;
@@ -26,13 +26,13 @@
 
 .qtb.addTest[`processRegistration`replace;{[]
   .qtb.override[`CONNS;([primaryAddress:el `me] clientHandle:el 22)];
-  .qtb.override[`connectionDropped;.qtb.wrapLogCall[`connectionDropped;{[conn]}]];
+  .qtb.override[`connectionDropped;.qtb.callLogS`connectionDropped];
   .qtb.override[`isValidConnHandle;{[ignore] 0b}];
   r:processRegistration[23;`me];
   checks:(("CONNS table";([primaryAddress:el `me] clientHandle:el 23);CONNS);
           ("Function calls";
           ([] functionName:``lg`connectionDropped;
-              arguments:((::);"Warning: Found invalid handle for primary address me, replacing registration";22));
+              arguments:((::);"Warning: Found invalid handle for primary address me, replacing registration";enlist 22));
           .qtb.getFuncallLog[]));
   all r,.qtb.matchValue ./: checks }];
 
@@ -54,7 +54,7 @@
 
 // *** sendMessage
 .qtb.suite`sendMessage;
-.qtb.setOverrides[`sendMessage;`CONNS`isRegisteredClient`submitMessage!(([primaryAddress:`me`you] clientHandle:10 11);.qtb.wrapLogCall[`isRegisteredClient;{[h;srca] 1b}];.qtb.wrapLogCall[`submitMessage;{[msg;clAddr;clHandle]}])];
+.qtb.setOverrides[`sendMessage;`CONNS`isRegisteredClient`submitMessage!(([primaryAddress:`me`you] clientHandle:10 11);.qtb.callLog[`isRegisteredClient;1b];.qtb.callLogS`submitMessage)];
 
 .qtb.addTest[`sendMessage`aok;{[]
   sendMessage[10;`me;`you;"are you ok?"];
@@ -76,7 +76,7 @@
      .qtb.getFuncallLog[]] }];
 
 .qtb.addTest[`sendMessage`notregistered;{[]
-  .qtb.override[`isRegisteredClient;.qtb.wrapLogCall[`isRegisteredClient;{[h;ca] 0b}]];
+  .qtb.override[`isRegisteredClient;.qtb.callLog[`isRegisteredClient;0b]];
   sendMessage[10;`me;`him;"are you ok?"];
   .qtb.matchValue["Call log";
      ([] functionName:``lg`isRegisteredClient;
@@ -86,14 +86,14 @@
 
 // *** submitMessage
 .qtb.suite`submitMessage;
-.qtb.setOverrides[`submitMessage;enlist[`send]!enlist .qtb.wrapLogCall[`send;{[h;m]}]];
+.qtb.setOverrides[`submitMessage;enlist[`send]!enlist .qtb.callLogS`send];
 
 .qtb.addTest[`submitMessage`ok;{[]
   submitMessage["ayt?";`aclient;10];
   .qtb.matchValue["Call log";([] functionName:``send; arguments:((::);(10;"ayt?")));.qtb.getFuncallLog[]]} ];
 
 .qtb.addTest[`submitMessage`fail;{[]
-  .qtb.override[`send;.qtb.wrapLogCall[`send;{[h;msg] '"oops!"}]];
+  .qtb.override[`send;.qtb.callLog[`send;{[h;msg] '"oops!"}]];
   submitMessage["dang!";`badboy;11];
   .qtb.matchValue["Call log";
                   ([] functionName:``send`lg; arguments:((::);(11;"dang!");"Failed to send message to client badboy: oops!"));
@@ -133,7 +133,7 @@
 
 .qtb.addTest[`connectionDropped`sanitycheck;{[]
   .qtb.override[`CONNS;([primaryAddress:`a`b]; clientHandle:3 3i)];
-  .qtb.override[`die;.qtb.wrapLogCall[`die;{[m]}]];
+  .qtb.override[`die;.qtb.callLogS`die];
   connectionDropped 3i;
   :.qtb.getFuncallLog[] ~ ([] functionName:``die`lg; arguments:((::);"Corrupt connection tracking";"Client a closed the connection"));
   }];
@@ -142,7 +142,7 @@
 
 .qtb.suite`receiveMsg;
 
-.qtb.setOverrides[`receiveMsg;enlist[`.dispatch.call]!enlist .qtb.wrapLogCall[`.dispatch.call;{[args]}]];
+.qtb.setOverrides[`receiveMsg;enlist[`.dispatch.call]!enlist .qtb.callLogS`.dispatch.call];
 
 .qtb.addTest[`receiveMsg`ok;{[]
   receiveMsg[10;(`afunc;`arg)];
@@ -156,16 +156,16 @@
                    .qtb.getFuncallLog[]]}];
 
 .qtb.addTest[`receiveMsg`error;{[]
-  .qtb.override[`.dispatch.call;.qtb.wrapLogCall[`.dispatch.call;{[req] '"whoops!"}]];
+  .qtb.override[`.dispatch.call;.qtb.callLog[`.dispatch.call;{[req] '"whoops!"}]];
   receiveMsg[3;(`afunc;`xx)];
   .qtb.matchValue["Function call log";
-                  ([] functionName:``lg`.dispatch.call`lg`lg;
+                  E::([] functionName:``lg`.dispatch.call`lg`lg;
                       arguments:((::);
                                  "Received msg `afunc`xx";
                                  (`afunc;3;`xx);
                                  "Error evaluating request: whoops!";
                                  "Request processing complete"));
-                   .qtb.getFuncallLog[]]}];
+                   A::.qtb.getFuncallLog[]]}];
 
 .qtb.addTest[`receiveMsg`string;{[]
   receiveMsg[13;"afunc[`arg]"];
