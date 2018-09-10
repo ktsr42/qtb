@@ -186,69 +186,6 @@ logFuncall_all:{[]
   .qtb.resetFuncallLog[];
   expFuncallLog ~ actFuncallLog };
 
-wrapLogCall_noargfunc:{[]
-  f:.qtb.wrapLogCall[`testfunc;{[] 42}];
-  .qtb.resetFuncallLog[];
-  r:f[];
-  all .qtb.matchValue ./: (("Return value";42;r);
-                           ("Log entry";([] functionName:``testfunc; arguments:((::);(::))); .qtb.priv.FUNCALL_LOG)) };
-
-wrapLogCall_oneargfunc:{[]
-  f:.qtb.wrapLogCall[`somef;{[a] a+2}];
-  .qtb.resetFuncallLog[];
-  r:f 2;
-  all .qtb.matchValue ./: (("Return value";4;r); ("Log entry";([] functionName:``somef; arguments:((::);2)); .qtb.priv.FUNCALL_LOG)) };
-
-wrapLogCall_twoargfunc:{[]
-  f:.qtb.wrapLogCall[`myfunc;{[a;b] a+b}];
-  .qtb.resetFuncallLog[];
-  r:f[2;3];
-  all .qtb.matchValue ./: (("Return value";5;r); ("Log entry";([] functionName:``myfunc; arguments:((::);(2;3))); .qtb.priv.FUNCALL_LOG)) };
-
-wrapLogCall_eightargfunc:{[]
-  f:.qtb.wrapLogCall[`eightfunc;{[a1;a2;a3;a4;a5;a6;a7;a8] a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8}];
-  .qtb.resetFuncallLog[];
-  r:f[1;2;3;4;5;6;7;8];
-  all .qtb.matchValue ./: (("Return value";36;r);
-                      ("Log entry";([] functionName:``eightfunc; arguments:((::);(1;2;3;4;5;6;7;8))); .qtb.priv.FUNCALL_LOG)) };
-
-wrapLogCall_complexargs:{[]
-  f:.qtb.wrapLogCall[`complexargs;{[a;b;c] (c;b;a)}];
-  .qtb.resetFuncallLog[];
-  d:`a`b!10 20;
-  l:(1j;2011.11.11;`xx);
-  t:([] ncol:1 2 3);
-  r:f[d;l;t];
-  all .qtb.matchValue ./: (("Return value";(t;l;d);r);
-                      ("Log entry";([] functionName:``complexargs; arguments:((::);(d;l;t))); .qtb.priv.FUNCALL_LOG)) };
-
-wrapLogCall_projectTable:{[]
-  t:([] ncol:1 2 3);  
-  f:.qtb.wrapLogCall[`tblproject;{[a;b;c] (a;c;b)}[;t]];
-  .qtb.resetFuncallLog[];
-  r:f[1;`xx];
-  all .qtb.matchValue ./: (("Return value";(1;`xx;t);r);
-                      ("Log entry";([] functionName:``tblproject; arguments:((::);(1;`xx))); .qtb.priv.FUNCALL_LOG)) };
-  
-wrapLogCall_projectDict:{[]
-  d:`a`b`c!77 88 99;
-  f:.qtb.wrapLogCall[`dictproject;{[a;b;c] (a;c;b)}[;d]];
-  .qtb.resetFuncallLog[];
-  r:f[1;`xx];
-  all .qtb.matchValue ./: (("Return value";(1;`xx;d);r);
-                      ("Log entry";([] functionName:``dictproject; arguments:((::);(1;`xx))); .qtb.priv.FUNCALL_LOG)) };
-
-wrapLogCall_projectList:{[]
-  l:(1;`xx;1 2);
-  f:.qtb.wrapLogCall[`listproject;{[a;b;c] (a;c;b)}[l]];
-  .qtb.resetFuncallLog[];
-  r:f[1;`xx];
-  all .qtb.matchValue ./: (("Return value";(l;`xx;1);r);
-                      ("Log entry";([] functionName:``listproject; arguments:((::);(1;`xx))); .qtb.priv.FUNCALL_LOG)) };
-
-wrapLogCall_SUITE:`wrapLogCall_noargfunc`wrapLogCall_oneargfunc`wrapLogCall_twoargfunc`wrapLogCall_eightargfunc,
-                  `wrapLogCall_complexargs`wrapLogCall_projectTable`wrapLogCall_projectDict`wrapLogCall_projectList;
-
 
 \d .isemptyfunc_context
 
@@ -716,8 +653,7 @@ callLog_all:{[]
   };
 
 
-ALLTESTS:countargs_SUITE,wrapLogCall_SUITE,isEmptyFunc_SUITE,executeSuite_SUITE,
-         executeTestN_SUITE,privExecuteN_SUITE,execute_SUITE,`logFuncall_all,
-         checkX_SUITE,catchX_SUITE,executeSpecial_SUITE,saveValue_SUITE,restoreValue_SUITE,
-         `applyOverrides_all`applyOverride_all`revertOverride_all`callLog_all;
+ALLTESTS:countargs_SUITE,isEmptyFunc_SUITE,executeSuite_SUITE,executeTestN_SUITE,privExecuteN_SUITE,
+         execute_SUITE,`logFuncall_all,checkX_SUITE,catchX_SUITE,executeSpecial_SUITE,saveValue_SUITE,
+         restoreValue_SUITE,`applyOverrides_all`applyOverride_all`revertOverride_all`callLog_all;
 

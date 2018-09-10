@@ -255,18 +255,6 @@ override:{[vname;val]
 // of the wrapped function, which gets de-serialized before being called. This takes
 // care of more complex cases such as projections with tables as fixed arguments being
 // passed in.
-wrapLogCall:{[name;func]
-  nameS:string name;
-  numargs:countargs func;
-  tail:"-9!0x",raze string -8! func; // create a string from the bytecode representation
-  value $[numargs within 0 1;"{[a] .qtb.logFuncall[`",nameS,";a]; (",tail,")[a]}";
-          numargs within 2 8;[arglist:";" sv string numargs#`a`b`c`d`e`f`g`h;
-                              "{[",arglist,"]",
-                              " argl:(",arglist,");",
-                              " .qtb.logFuncall[`",nameS,";argl];",
-                              " (",tail,") . argl}"];
-                  '"Invalid or unsupported number of arguments"] };
-
 callLogComplex:{[fname;rvof;nargs]
   numargs:$[nargs within 1 8;nargs;countargs value fname];
   if[not numargs within 1 8;'"Invalid or unsupported number of arguments"];
