@@ -497,69 +497,6 @@ executeTestN_SUITE:`executeTestN_success`executeTestN_fail`executeTestN_exceptio
                    `executeTestN_toomanyargs`executeTestN_beforeandafter`executeTestN_notest_beforeeacherr,
                    `executeTestN_nocatch_success`executeTestN_nocatch_exception;
 
-saveValue_regularDefined:{[]
-  savedValues_orig:.qtb.priv.SAVEDVALUES;
-  testfunc:{x+x};
-  saveValue_Root::42;
-  .saveValue.secondLevel::testfunc;
-  .saveValue.context.subcontext::`a`b!10 20;
-  .z.exit:testfunc;
-  vars:`saveValue_Root`.saveValue.secondLevel`.saveValue.context.subcontext`.z.exit`.z.pc`INVALID`.context.INVALID;
-  .qtb.saveValue each vars;
-  expSavedvalues:(`,vars)!(::) , {(x;(::))} each ((1b;42);(1b;testfunc);(1b;`a`b!10 20);(1b;testfunc);(0b;`undef);(0b;`undef);(0b;`undef));
-  actSavedvalues:AS::.qtb.priv.SAVEDVALUES;
-  .qtb.priv.SAVEDVALUES::savedValues_orig;
-  actSavedvalues ~ ES::expSavedvalues };
-
-saveValue_multipleRedefinitions:{[]
-  savedValues_orig:.qtb.priv.SAVEDVALUES;  
-  .saveValue.Aval::0;
-  .qtb.saveValue`.saveValue.Aval;
-  .saveValue.Aval::1;
-  .qtb.saveValue`.saveValue.Aval;
-  .saveValue.Aval::2;
-  .qtb.saveValue`.saveValue.Aval;
-  actSavedvalues:.qtb.priv.SAVEDVALUES;
-  .qtb.priv.SAVEDVALUES::savedValues_orig;
-  actSavedvalues ~ ``.saveValue.Aval!((::);((1b;2);(1b;1);(1b;0);(::))) };
-
-saveValue_pushPrevious:{[]
-  savedValues_orig:.qtb.priv.SAVEDVALUES;  
-  .qtb.priv.SAVEDVALUES:``.saveValues.Anotherval!((::);enlist (::));
-  .qtb.saveValue `.saveValues.Anotherval;
-  actSavedValues:.qtb.priv.SAVEDVALUES;
-  .qtb.priv.SAVEDVALUES::savedValues_orig;
-  (``.saveValues.Anotherval!((::);((0b;`undef);(::)))) ~ actSavedValues };
-
-saveValue_SUITE:`saveValue_regularDefined`saveValue_multipleRedefinitions`saveValue_pushPrevious;
-
-restoreValue_base:{[]
-  savedValues_orig:.qtb.priv.SAVEDVALUES;
-  .qtb.priv.SAVEDVALUES::``.restoreValue.a`.z.exit`UNDEF`.restoreValue.UNDEF!((::);((1b;100);(1b;42);(::));((0b;`undef);(::));((0b;`undef);(::));((0b;`undef);(::)));
-  .z.exit::exitfunc:{[r] };
-  UNDEF::42;
-  .restoreValue.UNDEF::67;
- 
-  res:.qtb.restoreValue each `.restoreValue.a`.z.exit`UNDEF`.restoreValue.UNDEF;
-  actSavedvalues:.qtb.priv.SAVEDVALUES;
- 
-  .qtb.priv.SAVEDVALUES::savedValues_orig;
-  expSavedvalues:``.restoreValue.a!((::);((1b;42);(::)));
-  all ((~)./: ((.restoreValue.a;100);(expSavedvalues;actSavedvalues);((100;(::);(::);(::));res))),
-      (@[{[x] value x; 0b};;1b] @/: `.z.exit`UNDEF`.restoreValue.UNDEF)  };
-
-restoreValue_invalidvar:{[]
-  savedValues_orig:.qtb.priv.SAVEDVALUES;
-  .qtb.priv.SAVEDVALUES:``A!((::);enlist (::));
-  
-  res:@[.qtb.restoreValue;;{[err] err}] @/: `invalid`A;
-  actSavedvalues:.qtb.priv.SAVEDVALUES;
-  .qtb.priv.SAVEDVALUES::savedValues_orig;
- 
-  (".qtb.restoreValue: invalid variable name: invalid";".qtb.restoreValue: invalid variable name: A") ~ res  };
-
-restoreValue_SUITE:`restoreValue_base`restoreValue_invalidvar;
-
 applyOverrides_all:{[]
   applyOverride_orig:.qtb.priv.applyOverride; 
   .qtb.priv.applyOverride:{[vn;vv] applyOverride_log,::enlist (vn;vv); `vname`origValue`undef!(vn;42;0b)};
@@ -654,6 +591,6 @@ callLog_all:{[]
 
 
 ALLTESTS:countargs_SUITE,isEmptyFunc_SUITE,executeSuite_SUITE,executeTestN_SUITE,privExecuteN_SUITE,
-         execute_SUITE,`logFuncall_all,checkX_SUITE,catchX_SUITE,executeSpecial_SUITE,saveValue_SUITE,
-         restoreValue_SUITE,`applyOverrides_all`applyOverride_all`revertOverride_all`callLog_all;
+         execute_SUITE,`logFuncall_all,checkX_SUITE,catchX_SUITE,executeSpecial_SUITE,
+         `applyOverrides_all`applyOverride_all`revertOverride_all`callLog_all;
 
