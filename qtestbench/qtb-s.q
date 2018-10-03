@@ -72,13 +72,117 @@ priv.pathString:{[path] ".","." sv string path,() };
 
 priv.isEmptyFunc:{[func] 0x100001 ~ @[{first value x};func;{[func;err] -1 "Error, not a function: ",-3!func;`err}[func;]] };
 
+// () `x`y  -> b is subpath of a
+// `  `x`y  -> b is subpath of a
+// `x`y ()  -> prefix
+// `x`y `x  -> prefix
+// `x `x`y  -> subpath
+// `x`y `x`y`z - > subpath
+// `x`y `x`y -> subpath
+// `x`y `a`b -> mismatch
+priv.matchPaths:{[pa;pb]
+ pl:{$[any x ~/: (();(::);`);`$();(),x]}'[(pa;pb)];
+ cpl:min pls:count'[pl];
+ if[(~) . cpl#/: pl; :$[(>) . pls;`prefix;`subpath]];
+ :$[0 = pls 0;`subpath;`mismatch];
+ };
+
+priv.print:1;
+priv.println:-1;
+
+priv.reportTestResult:{[verbose;testnames;res;reason]
+ if[not verbose;
+  priv.print (`succeed`failed`broke`invalid`skipped!".FBIS") res;
+  :(::)];
+ msg:testnames," ",string res;$[all (1 <> res;not "" ~ reason);" because ",reason;""];
+ priv.println msg;
+ };
+
 priv.executeSpecial:{[func;suiteNameS;specialNameS]
   if[(func ~ (::)) or (func ~ ()) or priv.isEmptyFunc[func]; :1b]; // no need to "execute" (::) or () or {}
-  -1 "Executing ",specialNameS," for ", suiteNameS;
   ex:@[{[f] f[];`ok};func;{x}];
-  $[`ok ~ ex; 1b;
-              [-1 suiteNameS," ",specialNameS," threw exception: ",ex; 0b]] };
+  if[not `ok ~ ex;
+    -1 suiteNameS," ",specialNameS," threw exception: ",ex;
+    :0b];
+  :1b;
+  };
+
+// params `nocatch`basepath`beforeach`aftereach`overrides`currPath`mode`verbose
+priv.executeSuite_new:{[params]
+ pm:priv.matchPaths . params`basepath`currPath;
+ if[`mismatch ~ pm;'"qtb: path mismatch"];
+ suitepathS:priv.pathString params`currPath;
+ errf:{[sp;err] if[err ~ "tree: invalid path"; -1 sp," is not a valid suite or test."; :`invpath]; 'err}[suitepathS;];
+ subtree:.[.tree.getLeaves;(priv.ALLTESTS;params`currPath);errf];
+ if[subtree ~ `invpath; '"qtb: invalid path"];
+ if[`value ~ subtree 0;
+   if[`skip ~ params`mode;
+     priv.reportTestResult[params`verbose;suitepathS;`skipped];
+     :`skipped];
+   if[`exec ~ params`mode;
+     :$[pm ~ `subpath;priv.executeTest_new . (subtree 1; @[params;`tns;:;suitepathS]);`$()]];
+   '"qtb: unknown mode ",string params`mode];
+ 
+ if[not `nodes ~ subtree 0;'"qtb: Unexpected result from .tree.getLeaves[]"];
+ // execute beforealls
+ if[`exec ~ params`mode;
+  if[not priv.executeSpecial[subtree[1;priv.BeforeAllTag];suitepathS;"BEFOREALL"];
+   params[`mode]:`skip]];
+
+ xa:@[;`overrides;,[;$[(::) ~ co:subtree[1;priv.OverrideTag];();co]]]
+      @[;`ae;,[;subtree[1;priv.AfterEachTag]]]
+        @[;`be;,[;subtree[1;priv.BeforeEachTag]]] params;
+
+ branches:(),$[pm ~ `prefix;first {[bp;cp] count[cp] _ bp} . params`basepath`currPath;(key subtree 1) except priv.Tags];
+ res:raze {[f;p;k] f @[p;`currPath;,[;k]]}[.z.s;params] each branches;
+ 
+ // execute afteralls
+ if[`exec ~ params`mode;
+  if[not priv.executeSpecial[subtree[1;priv.AfterAllTag];suitepathS;"AFTERALL"];
+   :(count res)#`broke]];
+ 
+ :res;
+ };
+
+// params: `nocatch`beforeeach`aftereach`tns`overrides`verbose
+priv.executeTest_new:{[tf;params]
+ if[params`verbose;1 params`tns];
+
+ if[1 <> countargs tf;
+   priv.reportTestResult . (params`verbose`tns),(`broke;"invalid test function");
+   :`broke];
+ 
+ // apply overrides
+ priv.CURRENT_OVERRIDES:priv.applyOverrides params`overrides;
+ 
+ // execute beforeEaches
+ if[not all 1b,priv.executeSpecial[;params`tns;"BEFOREEACH"] each params`beforeeach;
+   priv.reportTestResult . (params`verbose`tns),(`broke;"beforeeach failure");
+   :`broke];
+
+ resetFuncallLog[];
+ 
+ // execute test
+ tres:$[params`nocatch;(`success;tf[]);catchX[tf;`]];
+ 
+ // execute afterEaches
+ aeres:all 1b,priv.executeSpecial[;params`tns;"AFTEREACH"] each params`aftereach;
+ 
+ // revert all overrides
+ priv.revertOverrides priv.CURRENT_OVERRIDES;
+ priv.CURRENT_OVERRIDES:0#priv.CURRENT_OVERRIDES;
   
+ res:$[not aeres;(`broke;"aftereach failure");
+       `exceptn ~ tres 0;(`error;"exception: ",tres 1);
+       (`success;0b) ~ tres;(`failed;"");
+       (`success;1b) ~ tres;(`success;"");
+       `success ~ tres 0;(`broke;"unexpected return value");
+                         '"qtb: unexpected test result"];
+
+ priv.reportTestResult . (params`verbose`tns),res;
+ :res 0;
+ };
+
 priv.executeSuite:{[nocatch;basePath;be;ae;ovrr;currPath]
   suitepathS:priv.pathString currPath;
   leaves:.[.tree.getLeaves;(priv.ALLTESTS;currPath);

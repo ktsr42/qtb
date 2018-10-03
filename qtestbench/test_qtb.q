@@ -210,7 +210,7 @@ executeSpecial_empty:{[]
 executeSpecial_success:{[]
   executeSpecial_mark::0b;
   r:.qtb.priv.executeSpecial[{ executeSpecial_mark::1b; };"executeSpecial success";"oh my"];
-  all R::(executeSpecial_mark;r) }
+  all (executeSpecial_mark;r) }
 
 executeSpecial_fail:{[]
   executeSpecial_mark::0b;
@@ -219,6 +219,14 @@ executeSpecial_fail:{[]
 
 executeSpecial_SUITE:`executeSpecial_empty`executeSpecial_success`executeSpecial_fail;
 
+
+isSubPath_all:{[]
+  :all {.qtb.priv.isSubPath[x;y] ~ z} .'((`;`a`b`c;1b);(`a`b;`a`b`c;1b);(`a`b;`a`b;1b);(`a`b;`a;0b);(`x`y;`a`y;0b);(`a`b;`;0b);(();`z;1b);((::);(::);1b));
+ };
+
+matchPaths_all:{[]
+  :all R::{.qtb.priv.matchPaths[x;y] ~ z} .' I::((();`a`b;`subpath);(`;`a`b;`subpath);(`x`y;();`prefix);(`x`y;`x;`prefix);(`x`y;`x`y`z;`subpath);(`x`y;`x`y;`subpath);(`x`y;`a`b;`mismatch));
+  };
 
 \d .executeSuite
 
@@ -235,19 +243,17 @@ setup:{[]
   executeSpecial_orig::.qtb.priv.executeSpecial;
   .qtb.priv.executeSpecial::{[f;sp;n] executeSpecial_log,::enlist (f;sp;n); 1b};
   
-  executeTest_orig::.qtb.priv.executeTest;
+  executeTest_new_orig::.qtb.priv.executeTest_new;
   executeTest_log::();
-  .qtb.priv.executeTest::{[nc;be;ae;sp;ovr;f] executeTest_log,::enlist (nc;be;ae;sp;ovr;f); 0b};
- 
-  tree_getBranches_orig::.tree.getBranches;
+  .qtb.priv.executeTest_new::{[tf;params] executeTest_log,::enlist (tf;params); `success};
+  dfltargs::`nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(0b;`$();();();(`$())!();`pa`th;`exec;1b);
   };
 
 restore:{[]
   ALLTESTS::alltests_orig;
   .tree.getLeaves::tree_getLeaves_orig;
   .qtb.priv.executeSpecial::executeSpecial_orig;
-  .qtb.priv.executeTest::executeTest_orig;
-  .tree.getBranches::tree_getBranches_orig;
+  .qtb.priv.executeTest_new::executeTest_new_orig;
   };
 
 beforeall:{[] `beforeeall};
@@ -264,122 +270,195 @@ overrides:`varA`varB!1 2;
 
 executeSuite_base:{[]
   .executeSuite.setup[];
-  leaves:(.qtb.priv'[`BeforeAllTag`AfterAllTag`OverrideTag`BeforeEachTag`AfterEachTag],`testa`testb)!
-    .executeSuite'[`beforeall`afterall`overrides`beforeeach_l`aftereach_l`testa`testb];
-  .tree.getLeaves::{[leaves;dummy1;dummy2] leaves}[leaves;;];
-  .tree.getBranches::{[tree;path] ()};
+  .tree.getLeaves:{[t;p] (`value;.executeSuite.testa)};
  
-  r:.qtb.priv.executeSuite[0b;`$();.executeSuite.beforeeach;.executeSuite.aftereach;`varB`varC!10 20;`q`test`bench];
- 
+  r:.qtb.priv.executeSuite_new .executeSuite.dfltargs;
   .executeSuite.restore[];
-  exectestlog:(0b;(.executeSuite.beforeeach;.executeSuite.beforeeach_l);(.executeSuite.aftereach;.executeSuite.aftereach_l);".q.test.bench";`varB`varC`varA!2 20 1;) each (`name`func!(`testa;.executeSuite.testa);`name`func!(`testb;.executeSuite.testb));
- 
-  all (not r),(.executeSuite.executeSpecial_log ~
-          ((.executeSuite.beforeall;".q.test.bench";"BEFOREALL");(.executeSuite.afterall;".q.test.bench";"AFTERALL"));
-          .executeSuite.executeTest_log ~ exectestlog) };
 
-executeSuite_recurse:{[]
+  :all (`success ~ r;.executeSuite.executeSpecial_log ~ ();
+        .executeSuite.executeTest_log ~ enlist (.executeSuite.testa;@[.executeSuite.dfltargs;`tns;:;".pa.th"]));
+  };
+
+
+executeSuite_recurseOnce:{[]
   .executeSuite.setup[];
-  
-  leaves:(.qtb.priv'[`BeforeAllTag`AfterAllTag`OverrideTag],`testa`testb,.qtb.priv'[`BeforeEachTag`AfterEachTag])!
-    .executeSuite'[`beforeall`afterall`overrides`testa`testb`beforeeach_l`aftereach_l];
-  .tree.getLeaves::{[leaves;dummy1;dummy2] leaves}[leaves;;];
-  .executeSuite.getBranches_callcount::0;
-  .tree.getBranches::{[tree;path]
-    .executeSuite.getBranches_callcount+::1;
-    if[.executeSuite.getBranches_callcount > 10;'"circuit breacker tripped, path: "," " sv string path];
-    $[`asuite ~ path;`brancha`branchb; ()] };
+  leaves:(.qtb.priv'[`BeforeAllTag`AfterAllTag`OverrideTag`BeforeEachTag`AfterEachTag],`testa`testb)!.executeSuite'[`beforeall`afterall`overrides`beforeeach_l`aftereach_l`testa`testb];
+  getLeaves_res:(`pa`th;`pa`th`testa;`pa`th`testb)!((`nodes;leaves);(`value;.executeSuite.testa);(`value;.executeSuite.testb));
+  .tree.getLeaves::{[dict;tree;path] if[not path in key dict;'"tree: invalid path"];dict path}[getLeaves_res;;];
  
-  tests:([] name:`testa`testb; func:(.executeSuite.testa;.executeSuite.testb));
-
-  r:.qtb.priv.executeSuite[0b;`$();();();`varB`varC!10 20;`asuite];
+  r:.qtb.priv.executeSuite_new .executeSuite.dfltargs;
  
   .executeSuite.restore[];
-   exp_speciallog:((.executeSuite.beforeall;".asuite";"BEFOREALL");
-                   (.executeSuite.beforeall;".asuite.brancha";"BEFOREALL");
-                   (.executeSuite.afterall; ".asuite.brancha";"AFTERALL");
-                   (.executeSuite.beforeall;".asuite.branchb";"BEFOREALL");
-                   (.executeSuite.afterall; ".asuite.branchb";"AFTERALL");
-                   (.executeSuite.afterall; ".asuite";"AFTERALL"));
-
+  me:{[args;v] @[args;`currPath`tns;{x,y};(v;".",string v)]};
+  exectestlog:{(x;y)}'[.executeSuite[`testa`testb];me[@[.executeSuite.dfltargs;`tns;:;".pa.th"]] each `testa`testb];
  
-  all (not r),
-   (.executeSuite.executeSpecial_log ~ exp_speciallog;
-     (.executeSuite.executeTest_log) ~ 
-       raze
-         ((0b;enlist .executeSuite.beforeeach_l;enlist .executeSuite.aftereach_l;".asuite";`varB`varC`varA!2 20 1;) each tests;
-          (0b;2#.executeSuite.beforeeach_l;2#.executeSuite.aftereach_l;".asuite.brancha";`varB`varC`varA!2 20 1;) each tests;
-          (0b;2#.executeSuite.beforeeach_l;2#.executeSuite.aftereach_l;".asuite.branchb";`varB`varC`varA!2 20 1;) each tests)) };
+  :all (`success`success ~ r;
+        .executeSuite.executeSpecial_log ~
+        ((.executeSuite.beforeall;".pa.th";"BEFOREALL");(.executeSuite.afterall;".pa.th";"AFTERALL"));
+        (.executeSuite.executeTest_log) ~ exectestlog);
+  };
 
-executeSuite_beforeallfail:{[]
+executeSuite_recurseTwice:{[]
+ .executeSuite.setup[];
+  ll0:(!) . (.qtb.priv[`BeforeAllTag`AfterAllTag`OverrideTag`BeforeEachTag`AfterEachTag],`th`xx;
+              .executeSuite[`beforeall`afterall`overrides`beforeeach_l`aftereach_l],((::);(::)));
+  ll1:(!) . (.qtb.priv'[`BeforeAllTag`AfterAllTag`OverrideTag`BeforeEachTag`AfterEachTag],`testa`testb;
+             .executeSuite'[`beforeall`afterall`overrides`beforeeach_l`aftereach_l`testa`testb]);
+  getLeaves_data:([] path:(`pa;`pa`th;`pa`xx;`pa`th`testa;`pa`th`testb;`pa`xx`testa;`pa`xx`testb);
+                     res:((`nodes;ll0);(`nodes;ll1);(`nodes;ll1);(`value;.executeSuite.testa);(`value;.executeSuite.testb);(`value;.executeSuite.testa);(`value;.executeSuite.testb)));
+  .tree.getLeaves:{[tbl;tree;tp] first exec res from tbl where path ~\: tp}[getLeaves_data];
+
+  r:.qtb.priv.executeSuite_new @[.executeSuite.dfltargs;`currPath;:;`pa];
+ 
+  .executeSuite.restore[];
+  exp_speciallog:((.executeSuite.beforeall;".pa";"BEFOREALL");
+                  (.executeSuite.beforeall;".pa.th";"BEFOREALL");
+                  (.executeSuite.afterall; ".pa.th";"AFTERALL");
+                  (.executeSuite.beforeall;".pa.xx";"BEFOREALL");
+                  (.executeSuite.afterall; ".pa.xx";"AFTERALL");
+                  (.executeSuite.afterall; ".pa";"AFTERALL"));
+ 
+  me:{[args;v] @[args;`currPath`tns;{x,y};(v;".",string v)]};
+  exectestlog:{(x;y)}'[.executeSuite[`testa`testb];me[@[.executeSuite.dfltargs;`tns;:;".pa.th"]] each `testa`testb];
+  exectestlog,:{(x;y)}'[.executeSuite[`testa`testb];me[@[.executeSuite.dfltargs;`tns`currPath;:;(".pa.xx";`pa`xx)]] each `testa`testb];
+ 
+  :all (`success`success`success`success ~ r;.executeSuite.executeSpecial_log ~ exp_speciallog;.executeSuite.executeTest_log ~ exectestlog);
+  };
+
+executeSuite_skip:{[]
+ .executeSuite.setup[];
+  ll0:(!) . (.qtb.priv[`BeforeAllTag`AfterAllTag`OverrideTag`BeforeEachTag`AfterEachTag],`th`xx;
+              .executeSuite[`beforeall`afterall`overrides`beforeeach_l`aftereach_l],((::);(::)));
+  ll1:(!) . (.qtb.priv'[`BeforeAllTag`AfterAllTag`OverrideTag`BeforeEachTag`AfterEachTag],`testa`testb;
+             .executeSuite'[`beforeall`afterall`overrides`beforeeach_l`aftereach_l`testa`testb]);
+  getLeaves_data:([] path:(`pa;`pa`th;`pa`xx;`pa`th`testa;`pa`th`testb;`pa`xx`testa;`pa`xx`testb);
+                     res:((`nodes;ll0);(`nodes;ll1);(`nodes;ll1);(`value;.executeSuite.testa);(`value;.executeSuite.testb);(`value;.executeSuite.testa);(`value;.executeSuite.testb)));
+  .tree.getLeaves:{[tbl;tree;tp] first exec res from tbl where path ~\: tp}[getLeaves_data];
+
+  r:.qtb.priv.executeSuite_new @[.executeSuite.dfltargs;`currPath`mode;:;`pa`skip];
+ 
+  .executeSuite.restore[];
+ 
+  :all (`skipped`skipped`skipped`skipped ~ r;.executeSuite.executeSpecial_log ~ ();.executeSuite.executeTest_log ~ ());
+  };
+
+executeSuite_beforeAllFail:{[]
+ .executeSuite.setup[];
+  ll0:(!) . (.qtb.priv[`BeforeAllTag`AfterAllTag`OverrideTag`BeforeEachTag`AfterEachTag],`th`xx;
+              .executeSuite[`beforeall`afterall`overrides`beforeeach_l`aftereach_l],((::);(::)));
+  ll1:(!) . (.qtb.priv'[`BeforeAllTag`AfterAllTag`OverrideTag`BeforeEachTag`AfterEachTag],`testa`testb;
+             .executeSuite'[`beforeall`afterall`overrides`beforeeach_l`aftereach_l`testa`testb]);
+  getLeaves_data:([] path:(`pa;`pa`th;`pa`xx;`pa`th`testa;`pa`th`testb;`pa`xx`testa;`pa`xx`testb);
+                     res:((`nodes;ll0);(`nodes;ll1);(`nodes;ll1);(`value;.executeSuite.testa);(`value;.executeSuite.testb);(`value;.executeSuite.testa);(`value;.executeSuite.testb)));
+  .tree.getLeaves:{[tbl;tree;tp] first exec res from tbl where path ~\: tp}[getLeaves_data];
+  .qtb.priv.executeSpecial::{[f;sns;spns] .executeSuite.executeSpecial_log,::enlist (f;sns;spns); not all (sns ~ ".pa.th";spns ~ "BEFOREALL")};
+
+  r:.qtb.priv.executeSuite_new @[.executeSuite.dfltargs;`currPath;:;`pa];
+ 
+  .executeSuite.restore[];
+  exp_speciallog:((.executeSuite.beforeall;".pa";"BEFOREALL");
+                  (.executeSuite.beforeall;".pa.th";"BEFOREALL");
+                  (.executeSuite.beforeall;".pa.xx";"BEFOREALL");
+                  (.executeSuite.afterall; ".pa.xx";"AFTERALL");
+                  (.executeSuite.afterall; ".pa";"AFTERALL"));
+ 
+  me:{[args;v] @[args;`currPath`tns;{x,y};(v;".",string v)]};
+  exectestlog:{(x;y)}'[.executeSuite[`testa`testb];me[@[.executeSuite.dfltargs;`tns`currPath;:;(".pa.xx";`pa`xx)]] each `testa`testb];
+ 
+  :all (`skipped`skipped`success`success ~ r;.executeSuite.executeSpecial_log ~ exp_speciallog;.executeSuite.executeTest_log ~ exectestlog);
+  };
+
+executeSuite_afterAllFail:{[]
+ .executeSuite.setup[];
+  ll0:(!) . (.qtb.priv[`BeforeAllTag`AfterAllTag`OverrideTag`BeforeEachTag`AfterEachTag],`th`xx;
+              .executeSuite[`beforeall`afterall`overrides`beforeeach_l`aftereach_l],((::);(::)));
+  ll1:(!) . (.qtb.priv'[`BeforeAllTag`AfterAllTag`OverrideTag`BeforeEachTag`AfterEachTag],`testa`testb;
+             .executeSuite'[`beforeall`afterall`overrides`beforeeach_l`aftereach_l`testa`testb]);
+  getLeaves_data:([] path:(`pa;`pa`th;`pa`xx;`pa`th`testa;`pa`th`testb;`pa`xx`testa;`pa`xx`testb);
+                     res:((`nodes;ll0);(`nodes;ll1);(`nodes;ll1);(`value;.executeSuite.testa);(`value;.executeSuite.testb);(`value;.executeSuite.testa);(`value;.executeSuite.testb)));
+  .tree.getLeaves:{[tbl;tree;tp] first exec res from tbl where path ~\: tp}[getLeaves_data];
+  .qtb.priv.executeSpecial::{[f;sns;spns] .executeSuite.executeSpecial_log,::enlist (f;sns;spns); not all (sns ~ ".pa.th";spns ~ "AFTERALL")};
+
+  r:.qtb.priv.executeSuite_new @[.executeSuite.dfltargs;`currPath;:;`pa];
+ 
+  .executeSuite.restore[];
+  exp_speciallog:((.executeSuite.beforeall;".pa";"BEFOREALL");
+                  (.executeSuite.beforeall;".pa.th";"BEFOREALL");
+                  (.executeSuite.afterall; ".pa.th";"AFTERALL");
+                  (.executeSuite.beforeall;".pa.xx";"BEFOREALL");
+                  (.executeSuite.afterall; ".pa.xx";"AFTERALL");
+                  (.executeSuite.afterall; ".pa";"AFTERALL"));
+ 
+  me:{[args;v] @[args;`currPath`tns;{x,y};(v;".",string v)]};
+  exectestlog:{(x;y)}'[.executeSuite[`testa`testb];me[@[.executeSuite.dfltargs;`tns;:;".pa.th"]] each `testa`testb];
+  exectestlog,:{(x;y)}'[.executeSuite[`testa`testb];me[@[.executeSuite.dfltargs;`tns`currPath;:;(".pa.xx";`pa`xx)]] each `testa`testb];
+ 
+  :all (`broke`broke`success`success ~ r;.executeSuite.executeSpecial_log ~ exp_speciallog;.executeSuite.executeTest_log ~ exectestlog);
+ };
+
+
+executeSuite_basepathSuite:{[]
+ .executeSuite.setup[];
+  ll0:(!) . (.qtb.priv[`BeforeAllTag`AfterAllTag`OverrideTag`BeforeEachTag`AfterEachTag],`th`xx;
+              .executeSuite[`beforeall`afterall`overrides`beforeeach_l`aftereach_l],((::);(::)));
+  ll1:(!) . (.qtb.priv'[`BeforeAllTag`AfterAllTag`OverrideTag`BeforeEachTag`AfterEachTag],`testa`testb;
+             .executeSuite'[`beforeall`afterall`overrides`beforeeach_l`aftereach_l`testa`testb]);
+  getLeaves_data:([] path:(`pa;`pa`th;`pa`xx;`pa`th`testa;`pa`th`testb;`pa`xx`testa;`pa`xx`testb);
+                     res:((`nodes;ll0);(`nodes;ll1);(`nodes;ll1);(`value;.executeSuite.testa);(`value;.executeSuite.testb);(`value;.executeSuite.testa);(`value;.executeSuite.testb)));
+  .tree.getLeaves:{[tbl;tree;tp] first exec res from tbl where path ~\: tp}[getLeaves_data];
+
+  r:.qtb.priv.executeSuite_new oa:@[.executeSuite.dfltargs;`basepath`currPath;:;(`pa`th;`pa)];
+ 
+  .executeSuite.restore[];
+  exp_speciallog:((.executeSuite.beforeall;".pa";"BEFOREALL");
+                  (.executeSuite.beforeall;".pa.th";"BEFOREALL");
+                  (.executeSuite.afterall; ".pa.th";"AFTERALL");
+                  (.executeSuite.afterall; ".pa";"AFTERALL"));
+ 
+  me:{[args;v] @[args;`currPath`tns;{x,y};(v;".",string v)]};
+  exectestlog:{(x;y)}'[.executeSuite[`testa`testb];me[@[oa;`tns`currPath;:;(".pa.th";`pa`th)]] each `testa`testb];
+ 
+  :all (`success`success ~ r;.executeSuite.executeSpecial_log ~ exp_speciallog;.executeSuite.executeTest_log ~ exectestlog);
+  };
+
+executeSuite_basepathTest:{[]
+ .executeSuite.setup[];
+  ll0:(!) . (.qtb.priv[`BeforeAllTag`AfterAllTag`OverrideTag`BeforeEachTag`AfterEachTag],`th`xx;
+              .executeSuite[`beforeall`afterall`overrides`beforeeach_l`aftereach_l],((::);(::)));
+  ll1:(!) . (.qtb.priv'[`BeforeAllTag`AfterAllTag`OverrideTag`BeforeEachTag`AfterEachTag],`testa`testb;
+             .executeSuite'[`beforeall`afterall`overrides`beforeeach_l`aftereach_l`testa`testb]);
+  getLeaves_data:([] path:(`pa;`pa`th;`pa`xx;`pa`th`testa;`pa`th`testb;`pa`xx`testa;`pa`xx`testb);
+                     res:((`nodes;ll0);(`nodes;ll1);(`nodes;ll1);(`value;.executeSuite.testa);(`value;.executeSuite.testb);(`value;.executeSuite.testa);(`value;.executeSuite.testb)));
+  .tree.getLeaves:{[tbl;tree;tp] first exec res from tbl where path ~\: tp}[getLeaves_data];
+
+  r:.qtb.priv.executeSuite_new oa:@[.executeSuite.dfltargs;`basepath`currPath;:;(`pa`th`testb;`pa)];
+ 
+  .executeSuite.restore[];
+  exp_speciallog:((.executeSuite.beforeall;".pa";"BEFOREALL");
+                  (.executeSuite.beforeall;".pa.th";"BEFOREALL");
+                  (.executeSuite.afterall; ".pa.th";"AFTERALL");
+                  (.executeSuite.afterall; ".pa";"AFTERALL"));
+ 
+  me:{[args;v] @[args;`currPath`tns;{x,y};(v;".",string v)]};
+  exectestlog:enlist (.executeSuite[`testb];me[@[oa;`tns`currPath;:;(".pa.th";`pa`th)]] each `testb);
+ 
+  :all (((),`success) ~ r;.executeSuite.executeSpecial_log ~ exp_speciallog;.executeSuite.executeTest_log ~ exectestlog);
+  };
+
+executeSuite_invalidpath:{[]
   .executeSuite.setup[];
-  leaves:(.qtb.priv'[`BeforeAllTag`AfterAllTag`OverrideTag],`testa`testb,.qtb.priv'[`BeforeEachTag`AfterEachTag])!
-    .executeSuite'[`beforeall`afterall`overrides`testa`testb`beforeeach_l`aftereach_l];
-
-  .tree.getLeaves::{[leaves;dummy1;dummy2] leaves}[leaves;;];
- 
-  .qtb.priv.executeSpecial::{[f;sp;n] .executeSuite.executeSpecial_log,::enlist (f;sp;n); 0b};
- 
-  r:.qtb.priv.executeSuite[0b;`$();.executeSuite.beforeeach;.executeSuite.aftereach;(`$())!();`];
+  .tree.getLeaves::{[tree;path] `invpath};
+  
+  r:@[.qtb.priv.executeSuite_new;@[.executeSuite.dfltargs;`currPath;:;`pa];{x}];
   
   .executeSuite.restore[];
- 
-  all not[r],
-      (.executeSuite.executeTest_log ~ ();
-      (.executeSuite.executeSpecial_log ~ enlist (.executeSuite.beforeall;enlist ".";"BEFOREALL"))) };
+  :("qtb: invalid path" ~ r) and (.executeSuite.executeTest_log ~ ()) and (.executeSuite.executeSpecial_log ~ ());
+  };
 
-executeSuite_invalidbasepath:{[]
-  .executeSuite.setup[];
-  .tree.getLeaves::{[tree;path] '"tree: invalid path"};
-  
-  r:.qtb.priv.executeSuite[0b;`a`b;();();(`$())!();`path];
-  
-  .executeSuite.restore[];
-  (0b ~ r) and (.executeSuite.executeTest_log ~ ()) and (.executeSuite.executeSpecial_log ~ ()) };
 
-executeSuite_getleaves_exception:{[]
-  .executeSuite.setup[];
-  .tree.getLeaves::{[tree;path] '"poof"};
-  
-  r:.test.checkException[.qtb.priv.executeSuite;(0b;`a`b;();();(`$())!();`path);"poof"];
-  
-  .executeSuite.restore[];
-  (1b ~ r) and (.executeSuite.executeTest_log ~ ()) and (.executeSuite.executeSpecial_log ~ ()) };
-
-executeSuite_followpath:{[]
-  .executeSuite.setup[];
-  .tree.getLeaves::{[tree;path]
-    $[`pa`th ~ path; ()!();
-      `pa`th`suite ~ path;(enlist `testa)!enlist .executeSuite.testa;
-                          '"invalid path"] };
-  .tree.getBranches::{[tree;path] ()};
-
-  r:.qtb.priv.executeSuite[0b;`pa`th`suite;();();(`$())!();`pa`th];
-  
-  .executeSuite.restore[];
-  all not[r],
-      (.executeSuite.executeTest_log ~ enlist (0b;enlist[(::)];enlist[(::)];".pa.th.suite";(`$())!();`name`func!(`testa;.executeSuite.testa));
-      (.executeSuite.executeSpecial_log ~
-                       ((();".pa.th";"BEFOREALL");
-                        enlist ((::);".pa.th.suite";"BEFOREALL");
-                        enlist ((::);".pa.th.suite";"AFTERALL");
-                        (();".pa.th";"AFTERALL"))))  };
-
-executeSuite_single:{[]
-  .executeSuite.setup[];
-  .tree.getLeaves:{[tree;path] (enlist `testa)!enlist .executeSuite.testa};
-  
-  r:.qtb.priv.executeSuite[0b;`pa`th`testa;();();(`$())!();`pa`th];
-  
-  .executeSuite.restore[];
-  all not[r],
-      (.executeSuite.executeTest_log ~ enlist (0b;enlist[(::)];enlist[(::)];".pa.th";(`$())!();`name`func!(`testa;.executeSuite.testa));
-      (.executeSuite.executeSpecial_log ~ (((::);".pa.th";"BEFOREALL");((::);".pa.th";"AFTERALL"))))  }
-  
-
-executeSuite_SUITE:`executeSuite_base`executeSuite_recurse`executeSuite_beforeallfail,
-                   `executeSuite_invalidbasepath`executeSuite_getleaves_exception,
-                   `executeSuite_followpath`executeSuite_single;
+executeSuite_SUITE:`executeSuite_base`executeSuite_recurseOnce`executeSuite_recurseTwice`executeSuite_beforeAllFail,
+                   `executeSuite_afterAllFail`executeSuite_basepathSuite`executeSuite_basepathTest`executeSuite_invalidpath,
+                   `executeSuite_skip;
 
 executeTestN_stdOverrides:{[]
   .orig.catchX:.qtb.catchX;
@@ -396,6 +475,9 @@ executeTestN_stdOverrides:{[]
   .test.revertOverrides_calls:();
   .orig.revertOverrides:.qtb.priv.revertOverrides;
   .qtb.priv.revertOverrides:{.test.revertOverrides_calls,:enlist x;};
+  .orig.reportTestResult:.qtb.priv.reportTestResult;
+  .test.reportTestResult_calls::();
+  .qtb.priv.reportTestResult:{[a;b;c;d] .test.reportTestResult_calls,::enlist (a;b;c;d)};
   };
 
 executeTestN_resetStdOverrides:{[]
@@ -403,62 +485,77 @@ executeTestN_resetStdOverrides:{[]
   .qtb.resetFuncallLog:.orig.resetFuncallLog;
   .qtb.priv.applyOverrides:.orig.applyOverrides;
   .qtb.priv.revertOverrides:.orig.revertOverrides;
+  .qtb.priv.reportTestResult:.orig.reportTestResult;
   };
 
 executeTestN_success:{[]
   executeTestN_stdOverrides[];
-  r:.qtb.priv.executeTest[0b;();();"executeTestN";(`$())!();`name`func!(`success;{})];
+  r:.qtb.priv.executeTest_new[{1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
   executeTestN_resetStdOverrides[];
-  all (r;
+  all (r ~ `success;
        1 = .test.resetFuncallLog_calls;
        .test.applyOverrides_calls ~ enlist (`$())!();
-       .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$())) };
+       .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
+       .test.reportTestResult_calls ~ enlist (0b;"executeTestN";`success;"")) };
 
 executeTestN_fail:{[]
   executeTestN_stdOverrides[];
   .qtb.catchX::{[f;a] (`success;0b)};
-  r:.qtb.priv.executeTest[0b;();();"executeTestN";(`$())!();`name`func!(`fail;{})];
+  r:.qtb.priv.executeTest_new[{};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
   executeTestN_resetStdOverrides[];
-  all (not r;
+  all (r ~ `failed;
        1 = .test.resetFuncallLog_calls;
        .test.applyOverrides_calls ~ enlist (`$())!();
-       .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$())) };
+       .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
+       .test.reportTestResult_calls ~ enlist (0b;"executeTestN";`failed;"")) };
 
 executeTestN_exception:{[]
   executeTestN_stdOverrides[];
   .qtb.catchX::{[f;a] (`exceptn;"poof")};
-  r:.qtb.priv.executeTest[0b;();();"executeTestN";(`$())!();`name`func!(`exception;{})];
+  r:.qtb.priv.executeTest_new[{};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
   executeTestN_resetStdOverrides[];
-  all (not r;
+  all (r ~ `error;
        1 = .test.resetFuncallLog_calls;
        .test.applyOverrides_calls ~ enlist (`$())!();
-       .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$())) };
+       .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
+       .test.reportTestResult_calls ~ enlist (0b;"executeTestN";`error;"exception: poof")) };
 
 executeTestN_other:{[]
- executeTestN_stdOverrides[];
+  executeTestN_stdOverrides[];
   .qtb.catchX::{[f;a] (`success;42)};
-  r:.test.checkException[.qtb.priv.executeTest;(0b;();();"executeTestN";(`$())!();`name`func!(`other;{}));"qtb: unexpected test result"];
+  r:.qtb.priv.executeTest_new[{42};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];  
   executeTestN_resetStdOverrides[];
-  all (not r;
+  all (r ~ `broke;
        1 = .test.resetFuncallLog_calls;
        .test.applyOverrides_calls ~ enlist (`$())!();
-       .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$())) };
+       .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
+       .test.reportTestResult_calls ~ enlist (0b;"executeTestN";`broke;"unexpected return value")) };
 
 executeTestN_nocatch_success:{[]
   executeTestN_stdOverrides[];
-  r:.qtb.priv.executeTest[1b;();();"executeTestN";(`$())!();`name`func!(`debug;{[] 1b})];
+  r:.qtb.priv.executeTest_new[{1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;();();"executeTestN";(`$())!();0b)];
   executeTestN_resetStdOverrides[];
-  r };
+  r ~ `success };
 
 executeTestN_nocatch_exception:{[]
   executeTestN_stdOverrides[];
-  r:.test.checkException[.qtb.priv.executeTest;(1b;();();"executeTestN";(`$())!();`name`func!(`debug;{[] '"jump!"}));"jump"];
+  r:.test.checkException[.qtb.priv.executeTest_new;
+                         ({'"jump!"};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;();();"executeTestN";(`$())!();0b));
+                         "jump!"];
   executeTestN_resetStdOverrides[];
   r };
 
-executeTestN_notafunc:{[] not .qtb.priv.executeTest[0b;();();"executeTestN";(`$())!();`name`func!(`notafunc;42)] };
+executeTestN_notafunc:{[]
+  executeTestN_stdOverrides[];
+  r:.qtb.priv.executeTest_new[42;`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
+  executeTestN_resetStdOverrides[]; 
+  r ~ `broke};
 
-executeTestN_toomanyargs:{[] not .qtb.priv.executeTest[0b;();();"executeTestN";(`$())!();`name`func!(`toomanyargs;{x+y})] };
+executeTestN_toomanyargs:{[]
+  executeTestN_stdOverrides[];
+  r:.qtb.priv.executeTest_new[{x+y};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
+  executeTestN_resetStdOverrides[]; 
+  r ~ `broke};
 
 .executeTestN.executeSpecial_log:();
 
@@ -471,12 +568,13 @@ executeTestN_beforeandafter:{[]
   beforeeaches:({[] `beforeeach_1};{[] `beforeeach_2};{[] `beforeeach_3});
   aftereaches:({[] `aftereach_1};{[] `aftereach_2});
  
-  r:.qtb.priv.executeTest[0b;beforeeaches;aftereaches;"executeTestN";(`$())!();`name`func!(`beforeandafter;{[] 0b})];
+  r:.qtb.priv.executeTest_new[{0b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;beforeeaches;aftereaches;"executeTestN.beforeandafter";(`$())!();0b)];
   executeTestN_resetStdOverrides[];
   testname:"executeTestN.beforeandafter";
   .qtb.priv.executeSpecial:executeSpecial_orig;
-  r and .executeTestN.executeSpecial_log ~
-        ((;testname;"BEFOREEACH") each beforeeaches),(;testname;"AFTEREACH") each aftereaches };
+  all (r ~ `failed;
+       .executeTestN.executeSpecial_log ~
+       ((;testname;"BEFOREEACH") each beforeeaches),(;testname;"AFTEREACH") each aftereaches) };
 
 executeTestN_notest_beforeeacherr:{[]
   executeTestN_stdOverrides[];
@@ -487,15 +585,37 @@ executeTestN_notest_beforeeacherr:{[]
   beforeeaches:({[] `beforeeach_1};{[] '"dingdong"};{[] `beforeeach_3});
   aftereaches:({[] `aftereach_1};{[] `aftereach_2});
  
-  r:.qtb.priv.executeTest[0b;beforeeaches;aftereaches;"executeTestN";(`$())!();`name`func!(`notest_beforeerr;{[] 1b})];
+ r:.qtb.priv.executeTest_new[{[] 1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;beforeeaches;aftereaches;"executeTestN.notest_beforeerr";(`$())!();0b)];
   .qtb.priv.executeSpecial::executeSpecial_orig;
   executeTestN_resetStdOverrides[];
  
-  (not r) and .executeTestN.executeSpecial_log ~ (;"executeTestN.notest_beforeerr";"BEFOREEACH") each beforeeaches };
+  :all (r ~ `broke;
+       .executeTestN.executeSpecial_log ~ (;"executeTestN.notest_beforeerr";"BEFOREEACH") each beforeeaches;
+       .test.reportTestResult_calls ~ enlist (0b;"executeTestN.notest_beforeerr";`broke;"beforeeach failure"));
+  };
+
+executeTestN_restoreOverrides_afterEachError:{[]
+  executeTestN_stdOverrides[];
+  executeSpecial_orig:.qtb.priv.executeSpecial;
+  .executeTestN.executeSpecial_log::();
+  .qtb.priv.executeSpecial:{[f;n;t] .executeTestN.executeSpecial_log,::enlist (f;n;t); not f ~ {[] '"dingdong"} };
+  
+  beforeeaches:({[] `beforeeach_1};{[] `beforeeach_3});
+  aftereaches:({[] `aftereach_1};{[] '"dingdong"};{[] `aftereach_2});
+ 
+  r:.qtb.priv.executeTest_new[{[] 1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;beforeeaches;aftereaches;"executeTestN.aftereach_error";(`$())!();0b)];
+  executeTestN_resetStdOverrides[];
+  .qtb.priv.executeSpecial::executeSpecial_orig;
+  :all (r ~ `broke;
+        .executeTestN.executeSpecial_log ~ ((;"executeTestN.aftereach_error";"BEFOREEACH") each beforeeaches),
+                                            (;"executeTestN.aftereach_error";"AFTEREACH") each  aftereaches;
+        .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
+        .test.reportTestResult_calls ~ enlist (0b;"executeTestN.aftereach_error";`broke;"aftereach failure"));
+ };
 
 executeTestN_SUITE:`executeTestN_success`executeTestN_fail`executeTestN_exception`executeTestN_other`executeTestN_notafunc,
                    `executeTestN_toomanyargs`executeTestN_beforeandafter`executeTestN_notest_beforeeacherr,
-                   `executeTestN_nocatch_success`executeTestN_nocatch_exception;
+                   `executeTestN_nocatch_success`executeTestN_nocatch_exception`executeTestN_restoreOverrides_afterEachError;
 
 applyOverrides_all:{[]
   applyOverride_orig:.qtb.priv.applyOverride; 
@@ -590,7 +710,8 @@ callLog_all:{[]
   };
 
 
+
 ALLTESTS:countargs_SUITE,isEmptyFunc_SUITE,executeSuite_SUITE,executeTestN_SUITE,privExecuteN_SUITE,
-         execute_SUITE,`logFuncall_all,checkX_SUITE,catchX_SUITE,executeSpecial_SUITE,
+         execute_SUITE,`logFuncall_all,checkX_SUITE,catchX_SUITE,executeSpecial_SUITE,`isSubPath_all,
          `applyOverrides_all`applyOverride_all`revertOverride_all`callLog_all;
 

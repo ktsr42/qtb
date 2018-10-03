@@ -96,13 +96,15 @@ foreachBranch:{[tree;path;func]
 
 
 // getLeaves[path] return all leaf nodes at branch path as a dictionary: name -m> value.
-// Throw exception if path is not a branch
+// Throw exception if path is not a branch or a leaf
 getLeaves:{[tree;path]
   nid:priv.getNodeId[tree;path];
-  if[not tree[nid;`nodeType] ~ `branch; '"tree: not a branch"];
-  er:enlist[`]!enlist (::);
-  :er,(!) . value exec nodeName,nodeValue from tree where parentId=nid,nodeType=`leaf;
- };
+  if[`leaf ~ tree[nid;`nodeType]; :(`value;tree[nid;`nodeValue])];
+  if[`branch ~ tree[nid;`nodeType];
+    r:(enlist[`]!enlist (::)),(!). value exec nodeName,nodeValue from tree where parentId=nid,nodeType=`leaf;
+    :(`nodes;r)];
+  '"tree: invalid path";
+  };
 
 // getBranches[path] return the list of all sub-branches of branch [path]. Error if path is not a branch
 
