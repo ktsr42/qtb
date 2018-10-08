@@ -142,13 +142,15 @@ foreachBranch:{[tree;path;func]
 
 
 // getLeaves[path] return all leaf nodes at branch path as a dictionary: name -m> value.
-// Throw exception if path is not a branch
+// Throw exception if path is not a branch or a leaf
 getLeaves:{[tree;path]
   nid:priv.getNodeId[tree;path];
-  if[not tree[nid;`nodeType] ~ `branch; '"tree: not a branch"];
-  er:enlist[`]!enlist (::);
-  :er,(!) . value exec nodeName,nodeValue from tree where parentId=nid,nodeType=`leaf;
- };
+  if[`leaf ~ tree[nid;`nodeType]; :(`value;tree[nid;`nodeValue])];
+  if[`branch ~ tree[nid;`nodeType];
+    r:(enlist[`]!enlist (::)),(!). value exec nodeName,nodeValue from tree where parentId=nid;
+    :(`nodes;r)];
+  '"tree: invalid path";
+  };
 
 // getBranches[path] return the list of all sub-branches of branch [path]. Error if path is not a branch
 
@@ -230,91 +232,123 @@ priv.pathString:{[path] ".","." sv string path,() };
 
 priv.isEmptyFunc:{[func] 0x100001 ~ @[{first value x};func;{[func;err] -1 "Error, not a function: ",-3!func;`err}[func;]] };
 
+// () `x`y  -> b is subpath of a
+// `  `x`y  -> b is subpath of a
+// `x`y ()  -> prefix
+// `x`y `x  -> prefix
+// `x `x`y  -> subpath
+// `x`y `x`y`z - > subpath
+// `x`y `x`y -> subpath
+// `x`y `a`b -> mismatch
+priv.matchPaths:{[pa;pb]
+ pl:{$[any x ~/: (();(::);`);`$();(),x]}'[(pa;pb)];
+ cpl:min pls:count'[pl];
+ if[(~) . cpl#/: pl; :$[(>) . pls;`prefix;`subpath]];
+ :$[0 = pls 0;`subpath;`mismatch];
+ };
+
+priv.print:1;
+priv.println:-1;
+
+priv.reportTestResult:{[verbose;testnames;res;reason]
+ if[not verbose;
+  priv.print (`succeed`failed`broke`invalid`skipped!".FBIS") res;
+  :(::)];
+ msg:testnames," ",string res;$[all (1 <> res;not "" ~ reason);" because ",reason;""];
+ priv.println msg;
+ };
+
 priv.executeSpecial:{[func;suiteNameS;specialNameS]
   if[(func ~ (::)) or (func ~ ()) or priv.isEmptyFunc[func]; :1b]; // no need to "execute" (::) or () or {}
-  -1 "Executing ",specialNameS," for ", suiteNameS;
   ex:@[{[f] f[];`ok};func;{x}];
-  $[`ok ~ ex; 1b;
-              [-1 suiteNameS," ",specialNameS," threw exception: ",ex; 0b]] };
-  
-priv.executeSuite:{[nocatch;basePath;be;ae;ovrr;currPath]
-  suitepathS:priv.pathString currPath;
-  leaves:.[.tree.getLeaves;(priv.ALLTESTS;currPath);
-              {[sp;err] if[err ~ "tree: invalid path"; -1 sp," is not a valid suite or test."; :`invpath]; 'err}[suitepathS;]];
-  
-  if[`invpath ~ leaves; :0b];  // bail out if we have hit an invalid path
-  
-  // execute beforeAll
-  if[not priv.executeSpecial[leaves priv.BeforeAllTag;suitepathS;"BEFOREALL"];
-    :enlist 0b];
-  
-  beforeEaches:be,leaves priv.BeforeEachTag;
-  overrides:ovrr,$[(::) ~ co:leaves priv.OverrideTag;();co];
-  afterEaches:ae,leaves priv.AfterEachTag;
- 
-  bpl:count basePath;
-  cpl:count currPath;
-  mpl:min (bpl;cpl);
-  if[not (mpl#basePath) ~ mpl#currPath; '"qtb: invalid test path"];  // sanity check: the current path is within the base path
-  
-  tests:key[leaves] except priv.Tags,`;
-  nextNode:first mpl _ basePath;
- 
-  results:$[(bpl = cpl + 1) and nextNode in tests;  // basePath resolves to a single test (leaf)
-                         priv.executeTest[nocatch;beforeEaches;afterEaches;suitepathS;overrides;`name`func!(nextNode;leaves nextNode)];
- 
-            bpl > cpl;   .z.s[nocatch;basePath;beforeEaches;afterEaches;overrides;(1 + mpl)#basePath]; // full basePath not reached yet, kepp following it
- 
-            // else execute the tests of this suite and recurse
-                         [testResults:priv.executeTest[nocatch;beforeEaches;afterEaches;suitepathS;overrides;] each ([] name:tests; func:leaves tests);
-                         testResults,raze .z.s[nocatch;basePath;beforeEaches;afterEaches;overrides] each
-                                               currPath ,/: .tree.getBranches[priv.ALLTESTS;currPath]]];
-                       
-  // execute afterAll
-  priv.executeSpecial[leaves priv.AfterAllTag;suitepathS;"AFTERALL"];
- 
-  results };
-
-priv.executeTest:{[nocatch;be;ae;suiteNameS;overrides;testDict]
-  testnameS:suiteNameS,".",string testDict`name;
-  func:testDict`func;
-  
-  if[1 <> countargs func;
-    -1 testnameS," is not a valid test function";
+  if[not `ok ~ ex;
+    -1 suiteNameS," ",specialNameS," threw exception: ",ex;
     :0b];
-    
-  // execute beforeEaches
-  if[not all priv.executeSpecial[;testnameS;"BEFOREEACH"] each be; :0b];
-  resetFuncallLog[];
+  :1b;
+  };
 
-  // apply overrides
-  priv.CURRENT_OVERRIDES:priv.applyOverrides overrides;
+// params `nocatch`basepath`beforeach`aftereach`overrides`currPath`mode`verbose
+priv.executeSuite:{[params]
+ pm:priv.matchPaths . params`basepath`currPath;
+ if[`mismatch ~ pm;'"qtb: path mismatch"];
+ suitepathS:priv.pathString params`currPath;
+ errf:{[sp;err] if[err ~ "tree: invalid path"; -1 sp," is not a valid suite or test."; :`invpath]; 'err}[suitepathS;];
+ subtree:.[.tree.getLeaves;(priv.ALLTESTS;params`currPath);errf];
+ if[subtree ~ `invpath; '"qtb: invalid path"];
+ if[`value ~ subtree 0;
+   if[`skip ~ params`mode;
+     priv.reportTestResult[params`verbose;suitepathS;`skipped];
+     :`skipped];
+   if[`exec ~ params`mode;
+     :$[pm ~ `subpath;priv.executeTest . (subtree 1; @[params;`tns;:;suitepathS]);`$()]];
+   '"qtb: unknown mode ",string params`mode];
  
-  // execute test
-  tr:$[nocatch;{[f] (`success;f[])}[func];catchX[func;`]];
+ if[not `nodes ~ subtree 0;'"qtb: Unexpected result from .tree.getLeaves[]"];
+ // execute beforealls
+ if[`exec ~ params`mode;
+  if[not priv.executeSpecial[subtree[1;priv.BeforeAllTag];suitepathS;"BEFOREALL"];
+   params[`mode]:`skip]];
 
-  // revert all overrides
-  priv.revertOverrides priv.CURRENT_OVERRIDES;
-  priv.CURRENT_OVERRIDES:0#priv.CURRENT_OVERRIDES;
+ xa:@[;`overrides;,[;$[(::) ~ co:subtree[1;priv.OverrideTag];();co]]]
+      @[;`aftereach;,[;subtree[1;priv.AfterEachTag]]]
+        @[;`beforeeach;,[;subtree[1;priv.BeforeEachTag]]] params;
+
+ branches:(),$[pm ~ `prefix;first {[bp;cp] count[cp] _ bp} . params`basepath`currPath;(key subtree 1) except priv.Tags,`];
+ res:raze {[f;p;k] f @[p;`currPath;,[;k]]}[.z.s;xa] each branches;
+ 
+ // execute afteralls
+ if[`exec ~ params`mode;
+  if[not priv.executeSpecial[subtree[1;priv.AfterAllTag];suitepathS;"AFTERALL"];
+   :(count res)#`broke]];
+ 
+ :res;
+ };
+
+// params: `nocatch`beforeeach`aftereach`tns`overrides`verbose
+priv.executeTest:{[tf;params]
+ if[params`verbose;1 params`tns];
+
+ if[1 <> countargs tf;
+   priv.reportTestResult . (params`verbose`tns),(`broke;"invalid test function");
+   :`broke];
+ 
+ // apply overrides
+ priv.CURRENT_OVERRIDES:priv.applyOverrides params`overrides;
+ 
+ // execute beforeEaches
+ if[not all 1b,priv.executeSpecial[;params`tns;"BEFOREEACH"] each params`beforeeach;
+   priv.reportTestResult . (params`verbose`tns),(`broke;"beforeeach failure");
+   :`broke];
+
+ resetFuncallLog[];
+ 
+ // execute test
+ tres:$[params`nocatch;(`success;tf[]);catchX[tf;`]];
+ 
+ // execute afterEaches
+ aeres:all 1b,priv.executeSpecial[;params`tns;"AFTEREACH"] each params`aftereach;
+ 
+ // revert all overrides
+ priv.revertOverrides priv.CURRENT_OVERRIDES;
+ priv.CURRENT_OVERRIDES:0#priv.CURRENT_OVERRIDES;
   
-  // execute afterEaches
-  priv.executeSpecial[;testnameS;"AFTEREACH"] each ae;
-  
-  $[ `exceptn ~ first tr; [-1 "Test ",testnameS," threw exception: ",last tr;  0b];
-    (`success;0b) ~ tr;   [-1 "Test ",testnameS," failed";                     0b];
-    (`success;1b) ~ tr;   [-1 "Test ",testnameS," succeeded";                  1b];
-    `success ~ first tr;  [-1 "Test ",testnameS," returned an invalid result"; 0b];
-                          '"qtb: unexpected test result"] };
+ res:$[not aeres;(`broke;"aftereach failure");
+       `exceptn ~ tres 0;(`error;"exception: ",tres 1);
+       (`success;0b) ~ tres;(`failed;"");
+       (`success;1b) ~ tres;(`success;"");
+       `success ~ tres 0;(`broke;"unexpected return value");
+                         '"qtb: unexpected test result"];
+
+ priv.reportTestResult . (params`verbose`tns),res;
+ :res 0;
+ };
 
 priv.execute:{[catchX;basepath] 
   pn:$[any basepath ~/: (`;(::);());`$();basepath,()];
   if[11 <> type pn;'"qtb: invalid inclusion path"];
-  res:priv.executeSuite[catchX;pn;();();priv.genDict;`$()];
-    
-  -1 "Tests executed: ",string count res;
-  -1 "Tests successful: ",string sum res;
-  -1 "Tests failed: ",string sum not res;
-  all res,0 < count res };
+  res:priv.executeSuite `nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(catchX;pn;();();priv.genDict;`$();`exec;0b);
+  :((),`success) ~ distinct res;
+   };
 
 priv.applyOverride:{[vname;newval]
   currval:$[undef:() ~ key vname;(::);eval vname];

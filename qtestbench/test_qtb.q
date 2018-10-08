@@ -6,14 +6,14 @@
 \l ../tb/testbench.q
 
 privExecuteN_all:{[]
-  executeSuite_orig:.qtb.priv.executeSuite_new;
-  .qtb.priv.executeSuite_new::{[x] 3#`success};
+  executeSuite_orig:.qtb.priv.executeSuite;
+  .qtb.priv.executeSuite::{[x] 3#`success};
   
   res1::.qtb.priv.execute[1b;`];
-  .qtb.priv.executeSuite_new::{[x] `success`error`success};
+  .qtb.priv.executeSuite::{[x] `success`error`success};
   res2::.qtb.priv.execute[1b;`a`b];
  
-  .qtb.priv.executeSuite_new::executeSuite_orig;
+  .qtb.priv.executeSuite::executeSuite_orig;
    :all (res1;not res2);
    };
 
@@ -234,9 +234,9 @@ setup:{[]
   executeSpecial_orig::.qtb.priv.executeSpecial;
   .qtb.priv.executeSpecial::{[f;sp;n] executeSpecial_log,::enlist (f;sp;n); 1b};
   
-  executeTest_new_orig::.qtb.priv.executeTest_new;
+  executeTest_orig::.qtb.priv.executeTest;
   executeTest_log::();
-  .qtb.priv.executeTest_new::{[tf;params] executeTest_log,::enlist (tf;params); `success};
+  .qtb.priv.executeTest::{[tf;params] executeTest_log,::enlist (tf;params); `success};
   dfltargs::`nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(0b;`$();();();(`$())!();`pa`th;`exec;1b);
   };
 
@@ -244,7 +244,7 @@ restore:{[]
   ALLTESTS::alltests_orig;
   .tree.getLeaves::tree_getLeaves_orig;
   .qtb.priv.executeSpecial::executeSpecial_orig;
-  .qtb.priv.executeTest_new::executeTest_new_orig;
+  .qtb.priv.executeTest::executeTest_orig;
   };
 
 beforeall:{[] `beforeeall};
@@ -282,7 +282,7 @@ executeSuite_base:{[]
   .executeSuite.setup[];
   .tree.getLeaves:{[t;p] (`value;.executeSuite.testa)};
  
-  r:.qtb.priv.executeSuite_new .executeSuite.dfltargs;
+  r:.qtb.priv.executeSuite .executeSuite.dfltargs;
   .executeSuite.restore[];
 
   :all (`success ~ r;.executeSuite.executeSpecial_log ~ ();
@@ -292,7 +292,7 @@ executeSuite_base:{[]
 
 executeSuite_recurseOnce:{[]
   .executeSuite.setup[];
-  r:.qtb.priv.executeSuite_new .executeSuite.dfltargs;
+  r:.qtb.priv.executeSuite .executeSuite.dfltargs;
  
   .executeSuite.restore[];
  
@@ -309,7 +309,7 @@ executeSuite_recurseOnce:{[]
 
 executeSuite_recurseTwice:{[]
   .executeSuite.setup[];
-  r:.qtb.priv.executeSuite_new @[.executeSuite.dfltargs;`currPath;:;`pa]; 
+  r:.qtb.priv.executeSuite @[.executeSuite.dfltargs;`currPath;:;`pa]; 
   .executeSuite.restore[];
 
   xab:@[.executeSuite.dfltargs;`overrides`tns;:;(.executeSuite.overrides;".pa.th")];
@@ -324,7 +324,7 @@ executeSuite_recurseTwice:{[]
 
 executeSuite_skip:{[]
  .executeSuite.setup[];
-  r:.qtb.priv.executeSuite_new @[.executeSuite.dfltargs;`currPath`mode;:;`pa`skip];
+  r:.qtb.priv.executeSuite @[.executeSuite.dfltargs;`currPath`mode;:;`pa`skip];
  
   .executeSuite.restore[];
  
@@ -335,7 +335,7 @@ executeSuite_beforeAllFail:{[]
   .executeSuite.setup[];
   .qtb.priv.executeSpecial::{[f;sns;spns] .executeSuite.executeSpecial_log,::enlist (f;sns;spns); not all (sns ~ ".pa.th";spns ~ "BEFOREALL")};
 
-  r:.qtb.priv.executeSuite_new @[.executeSuite.dfltargs;`currPath;:;`pa]; 
+  r:.qtb.priv.executeSuite @[.executeSuite.dfltargs;`currPath;:;`pa]; 
   .executeSuite.restore[];
   exp_speciallog:.executeSuite.exp_speciallog 0 1 3 4 5;
  
@@ -350,7 +350,7 @@ executeSuite_afterAllFail:{[]
  .executeSuite.setup[];
   .qtb.priv.executeSpecial::{[f;sns;spns] .executeSuite.executeSpecial_log,::enlist (f;sns;spns); not all (sns ~ ".pa.th";spns ~ "AFTERALL")};
 
-  r:.qtb.priv.executeSuite_new @[.executeSuite.dfltargs;`currPath;:;`pa]; 
+  r:.qtb.priv.executeSuite @[.executeSuite.dfltargs;`currPath;:;`pa]; 
   .executeSuite.restore[];
 
  
@@ -365,7 +365,7 @@ executeSuite_afterAllFail:{[]
 
 executeSuite_basepathSuite:{[]
   .executeSuite.setup[];
-  r:.qtb.priv.executeSuite_new oa:@[.executeSuite.dfltargs;`basepath`currPath;:;(`pa`th;`pa)];
+  r:.qtb.priv.executeSuite oa:@[.executeSuite.dfltargs;`basepath`currPath;:;(`pa`th;`pa)];
  
   .executeSuite.restore[];
   exp_speciallog:.executeSuite.exp_speciallog 0 1 2 5;
@@ -379,7 +379,7 @@ executeSuite_basepathSuite:{[]
 
 executeSuite_basepathTest:{[]
  .executeSuite.setup[];
-  r:.qtb.priv.executeSuite_new oa:@[.executeSuite.dfltargs;`basepath`currPath;:;(`pa`th`testb;`pa)];
+  r:.qtb.priv.executeSuite oa:@[.executeSuite.dfltargs;`basepath`currPath;:;(`pa`th`testb;`pa)];
  
   .executeSuite.restore[];
   exp_speciallog:.executeSuite.exp_speciallog 0 1 2 5;
@@ -395,7 +395,7 @@ executeSuite_invalidpath:{[]
   .executeSuite.setup[];
   .tree.getLeaves::{[tree;path] '"tree: invalid path"};
   
-  r:@[.qtb.priv.executeSuite_new;@[.executeSuite.dfltargs;`currPath;:;`pa];{x}];
+  r:@[.qtb.priv.executeSuite;@[.executeSuite.dfltargs;`currPath;:;`pa];{x}];
   
   .executeSuite.restore[];
   :("qtb: invalid path" ~ r) and (.executeSuite.executeTest_log ~ ()) and (.executeSuite.executeSpecial_log ~ ());
@@ -436,7 +436,7 @@ executeTestN_resetStdOverrides:{[]
 
 executeTestN_success:{[]
   executeTestN_stdOverrides[];
-  r:.qtb.priv.executeTest_new[{1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
+  r:.qtb.priv.executeTest[{1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
   executeTestN_resetStdOverrides[];
   all (r ~ `success;
        1 = .test.resetFuncallLog_calls;
@@ -447,7 +447,7 @@ executeTestN_success:{[]
 executeTestN_fail:{[]
   executeTestN_stdOverrides[];
   .qtb.catchX::{[f;a] (`success;0b)};
-  r:.qtb.priv.executeTest_new[{};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
+  r:.qtb.priv.executeTest[{};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
   executeTestN_resetStdOverrides[];
   all (r ~ `failed;
        1 = .test.resetFuncallLog_calls;
@@ -458,7 +458,7 @@ executeTestN_fail:{[]
 executeTestN_exception:{[]
   executeTestN_stdOverrides[];
   .qtb.catchX::{[f;a] (`exceptn;"poof")};
-  r:.qtb.priv.executeTest_new[{};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
+  r:.qtb.priv.executeTest[{};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
   executeTestN_resetStdOverrides[];
   all (r ~ `error;
        1 = .test.resetFuncallLog_calls;
@@ -469,7 +469,7 @@ executeTestN_exception:{[]
 executeTestN_other:{[]
   executeTestN_stdOverrides[];
   .qtb.catchX::{[f;a] (`success;42)};
-  r:.qtb.priv.executeTest_new[{42};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];  
+  r:.qtb.priv.executeTest[{42};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];  
   executeTestN_resetStdOverrides[];
   all (r ~ `broke;
        1 = .test.resetFuncallLog_calls;
@@ -479,13 +479,13 @@ executeTestN_other:{[]
 
 executeTestN_nocatch_success:{[]
   executeTestN_stdOverrides[];
-  r:.qtb.priv.executeTest_new[{1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;();();"executeTestN";(`$())!();0b)];
+  r:.qtb.priv.executeTest[{1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;();();"executeTestN";(`$())!();0b)];
   executeTestN_resetStdOverrides[];
   r ~ `success };
 
 executeTestN_nocatch_exception:{[]
   executeTestN_stdOverrides[];
-  r:.test.checkException[.qtb.priv.executeTest_new;
+  r:.test.checkException[.qtb.priv.executeTest;
                          ({'"jump!"};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;();();"executeTestN";(`$())!();0b));
                          "jump!"];
   executeTestN_resetStdOverrides[];
@@ -493,13 +493,13 @@ executeTestN_nocatch_exception:{[]
 
 executeTestN_notafunc:{[]
   executeTestN_stdOverrides[];
-  r:.qtb.priv.executeTest_new[42;`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
+  r:.qtb.priv.executeTest[42;`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
   executeTestN_resetStdOverrides[]; 
   r ~ `broke};
 
 executeTestN_toomanyargs:{[]
   executeTestN_stdOverrides[];
-  r:.qtb.priv.executeTest_new[{x+y};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
+  r:.qtb.priv.executeTest[{x+y};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
   executeTestN_resetStdOverrides[]; 
   r ~ `broke};
 
@@ -514,7 +514,7 @@ executeTestN_beforeandafter:{[]
   beforeeaches:({[] `beforeeach_1};{[] `beforeeach_2};{[] `beforeeach_3});
   aftereaches:({[] `aftereach_1};{[] `aftereach_2});
  
-  r:.qtb.priv.executeTest_new[{0b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;beforeeaches;aftereaches;"executeTestN.beforeandafter";(`$())!();0b)];
+  r:.qtb.priv.executeTest[{0b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;beforeeaches;aftereaches;"executeTestN.beforeandafter";(`$())!();0b)];
   executeTestN_resetStdOverrides[];
   testname:"executeTestN.beforeandafter";
   .qtb.priv.executeSpecial:executeSpecial_orig;
@@ -531,7 +531,7 @@ executeTestN_notest_beforeeacherr:{[]
   beforeeaches:({[] `beforeeach_1};{[] '"dingdong"};{[] `beforeeach_3});
   aftereaches:({[] `aftereach_1};{[] `aftereach_2});
  
- r:.qtb.priv.executeTest_new[{[] 1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;beforeeaches;aftereaches;"executeTestN.notest_beforeerr";(`$())!();0b)];
+ r:.qtb.priv.executeTest[{[] 1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;beforeeaches;aftereaches;"executeTestN.notest_beforeerr";(`$())!();0b)];
   .qtb.priv.executeSpecial::executeSpecial_orig;
   executeTestN_resetStdOverrides[];
  
@@ -549,7 +549,7 @@ executeTestN_restoreOverrides_afterEachError:{[]
   beforeeaches:({[] `beforeeach_1};{[] `beforeeach_3});
   aftereaches:({[] `aftereach_1};{[] '"dingdong"};{[] `aftereach_2});
  
-  r:.qtb.priv.executeTest_new[{[] 1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;beforeeaches;aftereaches;"executeTestN.aftereach_error";(`$())!();0b)];
+  r:.qtb.priv.executeTest[{[] 1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;beforeeaches;aftereaches;"executeTestN.aftereach_error";(`$())!();0b)];
   executeTestN_resetStdOverrides[];
   .qtb.priv.executeSpecial::executeSpecial_orig;
   :all (r ~ `broke;

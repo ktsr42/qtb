@@ -108,8 +108,7 @@ priv.executeSpecial:{[func;suiteNameS;specialNameS]
   };
 
 // params `nocatch`basepath`beforeach`aftereach`overrides`currPath`mode`verbose
-priv.executeSuite_new:{[params]
- XSPARAMS,::enlist @[params;`currPath`basepath;(),];
+priv.executeSuite:{[params]
  pm:priv.matchPaths . params`basepath`currPath;
  if[`mismatch ~ pm;'"qtb: path mismatch"];
  suitepathS:priv.pathString params`currPath;
@@ -121,7 +120,7 @@ priv.executeSuite_new:{[params]
      priv.reportTestResult[params`verbose;suitepathS;`skipped];
      :`skipped];
    if[`exec ~ params`mode;
-     :$[pm ~ `subpath;priv.executeTest_new . (subtree 1; @[params;`tns;:;suitepathS]);`$()]];
+     :$[pm ~ `subpath;priv.executeTest . (subtree 1; @[params;`tns;:;suitepathS]);`$()]];
    '"qtb: unknown mode ",string params`mode];
  
  if[not `nodes ~ subtree 0;'"qtb: Unexpected result from .tree.getLeaves[]"];
@@ -146,7 +145,7 @@ priv.executeSuite_new:{[params]
  };
 
 // params: `nocatch`beforeeach`aftereach`tns`overrides`verbose
-priv.executeTest_new:{[tf;params]
+priv.executeTest:{[tf;params]
  if[params`verbose;1 params`tns];
 
  if[1 <> countargs tf;
@@ -184,79 +183,10 @@ priv.executeTest_new:{[tf;params]
  :res 0;
  };
 
-priv.executeSuite:{[nocatch;basePath;be;ae;ovrr;currPath]
-  suitepathS:priv.pathString currPath;
-  leaves:.[.tree.getLeaves;(priv.ALLTESTS;currPath);
-              {[sp;err] if[err ~ "tree: invalid path"; -1 sp," is not a valid suite or test."; :`invpath]; 'err}[suitepathS;]];
-  
-  if[`invpath ~ leaves; :0b];  // bail out if we have hit an invalid path
-  
-  // execute beforeAll
-  if[not priv.executeSpecial[leaves priv.BeforeAllTag;suitepathS;"BEFOREALL"];
-    :enlist 0b];
-  
-  beforeEaches:be,leaves priv.BeforeEachTag;
-  overrides:ovrr,$[(::) ~ co:leaves priv.OverrideTag;();co];
-  afterEaches:ae,leaves priv.AfterEachTag;
- 
-  bpl:count basePath;
-  cpl:count currPath;
-  mpl:min (bpl;cpl);
-  if[not (mpl#basePath) ~ mpl#currPath; '"qtb: invalid test path"];  // sanity check: the current path is within the base path
-  
-  tests:key[leaves] except priv.Tags,`;
-  nextNode:first mpl _ basePath;
- 
-  results:$[(bpl = cpl + 1) and nextNode in tests;  // basePath resolves to a single test (leaf)
-                         priv.executeTest[nocatch;beforeEaches;afterEaches;suitepathS;overrides;`name`func!(nextNode;leaves nextNode)];
- 
-            bpl > cpl;   .z.s[nocatch;basePath;beforeEaches;afterEaches;overrides;(1 + mpl)#basePath]; // full basePath not reached yet, kepp following it
- 
-            // else execute the tests of this suite and recurse
-                         [testResults:priv.executeTest[nocatch;beforeEaches;afterEaches;suitepathS;overrides;] each ([] name:tests; func:leaves tests);
-                         testResults,raze .z.s[nocatch;basePath;beforeEaches;afterEaches;overrides] each
-                                               currPath ,/: .tree.getBranches[priv.ALLTESTS;currPath]]];
-                       
-  // execute afterAll
-  priv.executeSpecial[leaves priv.AfterAllTag;suitepathS;"AFTERALL"];
- 
-  results };
-
-priv.executeTest:{[nocatch;be;ae;suiteNameS;overrides;testDict]
-  testnameS:suiteNameS,".",string testDict`name;
-  func:testDict`func;
-  
-  if[1 <> countargs func;
-    -1 testnameS," is not a valid test function";
-    :0b];
-    
-  // execute beforeEaches
-  if[not all priv.executeSpecial[;testnameS;"BEFOREEACH"] each be; :0b];
-  resetFuncallLog[];
-
-  // apply overrides
-  priv.CURRENT_OVERRIDES:priv.applyOverrides overrides;
- 
-  // execute test
-  tr:$[nocatch;{[f] (`success;f[])}[func];catchX[func;`]];
-
-  // revert all overrides
-  priv.revertOverrides priv.CURRENT_OVERRIDES;
-  priv.CURRENT_OVERRIDES:0#priv.CURRENT_OVERRIDES;
-  
-  // execute afterEaches
-  priv.executeSpecial[;testnameS;"AFTEREACH"] each ae;
-  
-  $[ `exceptn ~ first tr; [-1 "Test ",testnameS," threw exception: ",last tr;  0b];
-    (`success;0b) ~ tr;   [-1 "Test ",testnameS," failed";                     0b];
-    (`success;1b) ~ tr;   [-1 "Test ",testnameS," succeeded";                  1b];
-    `success ~ first tr;  [-1 "Test ",testnameS," returned an invalid result"; 0b];
-                          '"qtb: unexpected test result"] };
-
 priv.execute:{[catchX;basepath] 
   pn:$[any basepath ~/: (`;(::);());`$();basepath,()];
   if[11 <> type pn;'"qtb: invalid inclusion path"];
-  res:priv.executeSuite_new `nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(catchX;pn;();();priv.genDict;`$();`exec;0b);
+  res:priv.executeSuite `nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(catchX;pn;();();priv.genDict;`$();`exec;0b);
   :((),`success) ~ distinct res;
    };
 
