@@ -109,6 +109,7 @@ priv.executeSpecial:{[func;suiteNameS;specialNameS]
 
 // params `nocatch`basepath`beforeach`aftereach`overrides`currPath`mode`verbose
 priv.executeSuite_new:{[params]
+ XSPARAMS,::enlist @[params;`currPath`basepath;(),];
  pm:priv.matchPaths . params`basepath`currPath;
  if[`mismatch ~ pm;'"qtb: path mismatch"];
  suitepathS:priv.pathString params`currPath;
@@ -130,11 +131,11 @@ priv.executeSuite_new:{[params]
    params[`mode]:`skip]];
 
  xa:@[;`overrides;,[;$[(::) ~ co:subtree[1;priv.OverrideTag];();co]]]
-      @[;`ae;,[;subtree[1;priv.AfterEachTag]]]
-        @[;`be;,[;subtree[1;priv.BeforeEachTag]]] params;
+      @[;`aftereach;,[;subtree[1;priv.AfterEachTag]]]
+        @[;`beforeeach;,[;subtree[1;priv.BeforeEachTag]]] params;
 
- branches:(),$[pm ~ `prefix;first {[bp;cp] count[cp] _ bp} . params`basepath`currPath;(key subtree 1) except priv.Tags];
- res:raze {[f;p;k] f @[p;`currPath;,[;k]]}[.z.s;params] each branches;
+ branches:(),$[pm ~ `prefix;first {[bp;cp] count[cp] _ bp} . params`basepath`currPath;(key subtree 1) except priv.Tags,`];
+ res:raze {[f;p;k] f @[p;`currPath;,[;k]]}[.z.s;xa] each branches;
  
  // execute afteralls
  if[`exec ~ params`mode;
@@ -255,12 +256,9 @@ priv.executeTest:{[nocatch;be;ae;suiteNameS;overrides;testDict]
 priv.execute:{[catchX;basepath] 
   pn:$[any basepath ~/: (`;(::);());`$();basepath,()];
   if[11 <> type pn;'"qtb: invalid inclusion path"];
-  res:priv.executeSuite[catchX;pn;();();priv.genDict;`$()];
-    
-  -1 "Tests executed: ",string count res;
-  -1 "Tests successful: ",string sum res;
-  -1 "Tests failed: ",string sum not res;
-  all res,0 < count res };
+  res:priv.executeSuite_new `nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(catchX;pn;();();priv.genDict;`$();`exec;0b);
+  :((),`success) ~ distinct res;
+   };
 
 priv.applyOverride:{[vname;newval]
   currval:$[undef:() ~ key vname;(::);eval vname];

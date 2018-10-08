@@ -101,7 +101,7 @@ getLeaves:{[tree;path]
   nid:priv.getNodeId[tree;path];
   if[`leaf ~ tree[nid;`nodeType]; :(`value;tree[nid;`nodeValue])];
   if[`branch ~ tree[nid;`nodeType];
-    r:(enlist[`]!enlist (::)),(!). value exec nodeName,nodeValue from tree where parentId=nid,nodeType=`leaf;
+    r:(enlist[`]!enlist (::)),(!). value exec nodeName,nodeValue from tree where parentId=nid;
     :(`nodes;r)];
   '"tree: invalid path";
   };
