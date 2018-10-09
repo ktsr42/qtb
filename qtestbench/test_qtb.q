@@ -7,10 +7,10 @@
 
 privExecuteN_all:{[]
   executeSuite_orig:.qtb.priv.executeSuite;
-  .qtb.priv.executeSuite::{[x] 3#`success};
+  .qtb.priv.executeSuite::{[x] ([] path:(`p`a;`p`b;`p`c); result:3#`succeeded)};
   
   res1::.qtb.priv.execute[1b;`];
-  .qtb.priv.executeSuite::{[x] `success`error`success};
+  .qtb.priv.executeSuite::{[x] ([] path:(`p`a;`p`b;`p`c); result:`success`error`success)};
   res2::.qtb.priv.execute[1b;`a`b];
  
   .qtb.priv.executeSuite::executeSuite_orig;
@@ -236,7 +236,7 @@ setup:{[]
   
   executeTest_orig::.qtb.priv.executeTest;
   executeTest_log::();
-  .qtb.priv.executeTest::{[tf;params] executeTest_log,::enlist (tf;params); `success};
+  .qtb.priv.executeTest::{[tf;params] executeTest_log,::enlist (tf;params); `path`result!(params`currPath;`succeeded)};
   dfltargs::`nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(0b;`$();();();(`$())!();`pa`th;`exec;1b);
   };
 
@@ -285,7 +285,7 @@ executeSuite_base:{[]
   r:.qtb.priv.executeSuite .executeSuite.dfltargs;
   .executeSuite.restore[];
 
-  :all (`success ~ r;.executeSuite.executeSpecial_log ~ ();
+  :all (enlist[`path`result!(`pa`th;`succeeded)] ~ R::r;.executeSuite.executeSpecial_log ~ ();
         .executeSuite.executeTest_log ~ enlist (.executeSuite.testa;@[.executeSuite.dfltargs;`tns;:;".pa.th"]));
   };
 
@@ -301,7 +301,7 @@ executeSuite_recurseOnce:{[]
   xab:@[xab;`beforeeach`aftereach;enlist];
   exectestlog:{(x;y)}'[.executeSuite[`testa`testb];.executeSuite.mkExecTestArgs[xab] each `testa`testb];
  
-  :all (`success`success ~ r;
+  :all (([] path:(`pa`th`testa;`pa`th`testb); result:`succeeded`succeeded) ~ r;
         .executeSuite.executeSpecial_log ~
         ((.executeSuite.beforeall;".pa.th";"BEFOREALL");(.executeSuite.afterall;".pa.th";"AFTERALL"));
         .executeSuite.executeTest_log ~ exectestlog);
@@ -317,7 +317,7 @@ executeSuite_recurseTwice:{[]
   exectestlog:{(x;y)}'[.executeSuite[`testa`testb];.executeSuite.mkExecTestArgs[xab] each `testa`testb];
   exectestlog,:{(x;y)}'[.executeSuite[`testa`testb];.executeSuite.mkExecTestArgs[@[xab;`tns`currPath;:;(".pa.xx";`pa`xx)]] each `testa`testb];
  
-  :all (`success`success`success`success ~ r;
+  :all (([] path:(`pa`th`testa;`pa`th`testb;`pa`xx`testa;`pa`xx`testb); result:`succeeded`succeeded`succeeded`succeeded) ~ r;
         .executeSuite.executeSpecial_log ~ .executeSuite.exp_speciallog;
         .executeSuite.executeTest_log ~ exectestlog);
   };
@@ -328,7 +328,9 @@ executeSuite_skip:{[]
  
   .executeSuite.restore[];
  
-  :all (`skipped`skipped`skipped`skipped ~ r;.executeSuite.executeSpecial_log ~ ();.executeSuite.executeTest_log ~ ());
+ :all (([] path:(`pa`th`testa;`pa`th`testb;`pa`xx`testa;`pa`xx`testb); result:`skipped`skipped`skipped`skipped) ~ r;
+       .executeSuite.executeSpecial_log ~ ();
+       .executeSuite.executeTest_log ~ ());
   };
 
 executeSuite_beforeAllFail:{[]
@@ -343,7 +345,9 @@ executeSuite_beforeAllFail:{[]
   xab:@[xab;`beforeeach`aftereach;:;(.executeSuite each) each (`beforeeach_l`beforeeach;`aftereach_l`aftereach)];
   exectestlog:{(x;y)}'[.executeSuite[`testa`testb];.executeSuite.mkExecTestArgs[@[xab;`tns`currPath;:;(".pa.xx";`pa`xx)]] each `testa`testb];
  
-  :all (`skipped`skipped`success`success ~ r;.executeSuite.executeSpecial_log ~ exp_speciallog;.executeSuite.executeTest_log ~ exectestlog);
+  :all (([] path:(`pa`th`testa;`pa`th`testb;`pa`xx`testa;`pa`xx`testb); result:`skipped`skipped`succeeded`succeeded) ~ r;
+          .executeSuite.executeSpecial_log ~ exp_speciallog;
+          .executeSuite.executeTest_log ~ exectestlog);
   };
 
 executeSuite_afterAllFail:{[]
@@ -359,7 +363,9 @@ executeSuite_afterAllFail:{[]
   exectestlog:{(x;y)}'[.executeSuite[`testa`testb];.executeSuite.mkExecTestArgs[@[xab;`tns;:;".pa.th"]] each `testa`testb];
   exectestlog,:{(x;y)}'[.executeSuite[`testa`testb];.executeSuite.mkExecTestArgs[@[xab;`tns`currPath;:;(".pa.xx";`pa`xx)]] each `testa`testb];
  
-  :all (`broke`broke`success`success ~ r;.executeSuite.executeSpecial_log ~ .executeSuite.exp_speciallog;.executeSuite.executeTest_log ~ exectestlog);
+ :all (([] path:(`pa`th`testa;`pa`th`testb;`pa`xx`testa;`pa`xx`testb); result:`broke`broke`succeeded`succeeded) ~ r;
+       .executeSuite.executeSpecial_log ~ .executeSuite.exp_speciallog;
+       .executeSuite.executeTest_log ~ exectestlog);
  };
 
 
@@ -374,7 +380,9 @@ executeSuite_basepathSuite:{[]
   xab:@[xab;`beforeeach`aftereach;:;(.executeSuite each) each (`beforeeach_l`beforeeach;`aftereach_l`aftereach)];
   exectestlog:{(x;y)}'[.executeSuite[`testa`testb];.executeSuite.mkExecTestArgs[@[xab;`tns`currPath;:;(".pa.th";`pa`th)]] each `testa`testb];
  
-  :all (`success`success ~ r;.executeSuite.executeSpecial_log ~ exp_speciallog;.executeSuite.executeTest_log ~ exectestlog);
+  :all (([] path:(`pa`th`testa;`pa`th`testb); result:`succeeded`succeeded) ~ r;
+        .executeSuite.executeSpecial_log ~ exp_speciallog;
+        .executeSuite.executeTest_log ~ exectestlog);
   };
 
 executeSuite_basepathTest:{[]
@@ -388,7 +396,7 @@ executeSuite_basepathTest:{[]
   xab:@[xab;`beforeeach`aftereach;:;(.executeSuite each) each (`beforeeach_l`beforeeach;`aftereach_l`aftereach)];
   exectestlog:enlist (.executeSuite[`testb];.executeSuite.mkExecTestArgs[@[xab;`tns`currPath;:;(".pa.th";`pa`th)]] each `testb);
  
-  :all (((),`success) ~ r;.executeSuite.executeSpecial_log ~ exp_speciallog;.executeSuite.executeTest_log ~ exectestlog);
+  :all (enlist[`path`result!(`pa`th`testb;`succeeded)] ~ r;.executeSuite.executeSpecial_log ~ exp_speciallog;.executeSuite.executeTest_log ~ exectestlog);
   };
 
 executeSuite_invalidpath:{[]
@@ -423,7 +431,7 @@ executeTestN_stdOverrides:{[]
   .qtb.priv.revertOverrides:{.test.revertOverrides_calls,:enlist x;};
   .orig.reportTestResult:.qtb.priv.reportTestResult;
   .test.reportTestResult_calls::();
-  .qtb.priv.reportTestResult:{[a;b;c;d] .test.reportTestResult_calls,::enlist (a;b;c;d)};
+  .qtb.priv.reportTestResult:{[a;b;c;d] .test.reportTestResult_calls,::enlist (a;b;c;d); };
   };
 
 executeTestN_resetStdOverrides:{[]
@@ -436,20 +444,20 @@ executeTestN_resetStdOverrides:{[]
 
 executeTestN_success:{[]
   executeTestN_stdOverrides[];
-  r:.qtb.priv.executeTest[{1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
+  r:.qtb.priv.executeTest[{1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;`he`re)];
   executeTestN_resetStdOverrides[];
-  all (r ~ `success;
+  all (r ~ `path`result!(`he`re;`succeeded);
        1 = .test.resetFuncallLog_calls;
        .test.applyOverrides_calls ~ enlist (`$())!();
        .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
-       .test.reportTestResult_calls ~ enlist (0b;"executeTestN";`success;"")) };
+       .test.reportTestResult_calls ~ enlist (0b;"executeTestN";`succeeded;"")) };
 
 executeTestN_fail:{[]
   executeTestN_stdOverrides[];
   .qtb.catchX::{[f;a] (`success;0b)};
-  r:.qtb.priv.executeTest[{};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
+  r:.qtb.priv.executeTest[{};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;`the`re)];
   executeTestN_resetStdOverrides[];
-  all (r ~ `failed;
+  all (r ~ `path`result!(`the`re;`failed);
        1 = .test.resetFuncallLog_calls;
        .test.applyOverrides_calls ~ enlist (`$())!();
        .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
@@ -458,9 +466,9 @@ executeTestN_fail:{[]
 executeTestN_exception:{[]
   executeTestN_stdOverrides[];
   .qtb.catchX::{[f;a] (`exceptn;"poof")};
-  r:.qtb.priv.executeTest[{};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
+  r:.qtb.priv.executeTest[{};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;`x`y`z)];
   executeTestN_resetStdOverrides[];
-  all (r ~ `error;
+  all (r ~ `path`result!(`x`y`z;`error);
        1 = .test.resetFuncallLog_calls;
        .test.applyOverrides_calls ~ enlist (`$())!();
        .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
@@ -469,9 +477,9 @@ executeTestN_exception:{[]
 executeTestN_other:{[]
   executeTestN_stdOverrides[];
   .qtb.catchX::{[f;a] (`success;42)};
-  r:.qtb.priv.executeTest[{42};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];  
+  r:.qtb.priv.executeTest[{42};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;(),`xxx)];  
   executeTestN_resetStdOverrides[];
-  all (r ~ `broke;
+  all (r ~ `path`result!((),`xxx;`broke);
        1 = .test.resetFuncallLog_calls;
        .test.applyOverrides_calls ~ enlist (`$())!();
        .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
@@ -479,9 +487,9 @@ executeTestN_other:{[]
 
 executeTestN_nocatch_success:{[]
   executeTestN_stdOverrides[];
-  r:.qtb.priv.executeTest[{1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;();();"executeTestN";(`$())!();0b)];
+  r:.qtb.priv.executeTest[{1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(1b;();();"executeTestN";(`$())!();0b;`$())];
   executeTestN_resetStdOverrides[];
-  r ~ `success };
+  r ~ `path`result!(`$();`succeeded) };
 
 executeTestN_nocatch_exception:{[]
   executeTestN_stdOverrides[];
@@ -493,15 +501,15 @@ executeTestN_nocatch_exception:{[]
 
 executeTestN_notafunc:{[]
   executeTestN_stdOverrides[];
-  r:.qtb.priv.executeTest[42;`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
+  r:.qtb.priv.executeTest[42;`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;`a`b)];
   executeTestN_resetStdOverrides[]; 
-  r ~ `broke};
+  r ~ `path`result!(`a`b;`broke)};
 
 executeTestN_toomanyargs:{[]
   executeTestN_stdOverrides[];
-  r:.qtb.priv.executeTest[{x+y};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(0b;();();"executeTestN";(`$())!();0b)];
+  r:.qtb.priv.executeTest[{x+y};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;`x`y`z)];
   executeTestN_resetStdOverrides[]; 
-  r ~ `broke};
+  r ~ `path`result!(`x`y`z;`broke)};
 
 .executeTestN.executeSpecial_log:();
 
@@ -514,11 +522,11 @@ executeTestN_beforeandafter:{[]
   beforeeaches:({[] `beforeeach_1};{[] `beforeeach_2};{[] `beforeeach_3});
   aftereaches:({[] `aftereach_1};{[] `aftereach_2});
  
-  r:.qtb.priv.executeTest[{0b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;beforeeaches;aftereaches;"executeTestN.beforeandafter";(`$())!();0b)];
+  r:.qtb.priv.executeTest[{0b};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(1b;beforeeaches;aftereaches;"executeTestN.beforeandafter";(`$())!();0b;`he`re)];
   executeTestN_resetStdOverrides[];
   testname:"executeTestN.beforeandafter";
   .qtb.priv.executeSpecial:executeSpecial_orig;
-  all (r ~ `failed;
+  all (r ~ `path`result!(`he`re;`failed);
        .executeTestN.executeSpecial_log ~
        ((;testname;"BEFOREEACH") each beforeeaches),(;testname;"AFTEREACH") each aftereaches) };
 
@@ -531,11 +539,11 @@ executeTestN_notest_beforeeacherr:{[]
   beforeeaches:({[] `beforeeach_1};{[] '"dingdong"};{[] `beforeeach_3});
   aftereaches:({[] `aftereach_1};{[] `aftereach_2});
  
- r:.qtb.priv.executeTest[{[] 1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;beforeeaches;aftereaches;"executeTestN.notest_beforeerr";(`$())!();0b)];
+ r:.qtb.priv.executeTest[{[] 1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(1b;beforeeaches;aftereaches;"executeTestN.notest_beforeerr";(`$())!();0b;`th`ere)];
   .qtb.priv.executeSpecial::executeSpecial_orig;
   executeTestN_resetStdOverrides[];
  
-  :all (r ~ `broke;
+  :all (r ~ `path`result!(`th`ere;`broke);
        .executeTestN.executeSpecial_log ~ (;"executeTestN.notest_beforeerr";"BEFOREEACH") each beforeeaches;
        .test.reportTestResult_calls ~ enlist (0b;"executeTestN.notest_beforeerr";`broke;"beforeeach failure"));
   };
@@ -549,10 +557,10 @@ executeTestN_restoreOverrides_afterEachError:{[]
   beforeeaches:({[] `beforeeach_1};{[] `beforeeach_3});
   aftereaches:({[] `aftereach_1};{[] '"dingdong"};{[] `aftereach_2});
  
-  r:.qtb.priv.executeTest[{[] 1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose!(1b;beforeeaches;aftereaches;"executeTestN.aftereach_error";(`$())!();0b)];
+  r:.qtb.priv.executeTest[{[] 1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(1b;beforeeaches;aftereaches;"executeTestN.aftereach_error";(`$())!();0b;`a`b)];
   executeTestN_resetStdOverrides[];
   .qtb.priv.executeSpecial::executeSpecial_orig;
-  :all (r ~ `broke;
+  :all (r ~ `path`result!(`a`b;`broke);
         .executeTestN.executeSpecial_log ~ ((;"executeTestN.aftereach_error";"BEFOREEACH") each beforeeaches),
                                             (;"executeTestN.aftereach_error";"AFTEREACH") each  aftereaches;
         .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());

@@ -90,13 +90,16 @@ priv.matchPaths:{[pa;pb]
 priv.print:1;
 priv.println:-1;
 
+priv.testResults:`succeeded`failed`broke`invalid`skipped!".FBIS";
+
 priv.reportTestResult:{[verbose;testnames;res;reason]
- if[not verbose;
-  priv.print (`succeed`failed`broke`invalid`skipped!".FBIS") res;
-  :(::)];
- msg:testnames," ",string res;$[all (1 <> res;not "" ~ reason);" because ",reason;""];
- priv.println msg;
- };
+  if[null priv.testResults res;'"qtb: invalid test result: ",string res];
+  if[verbose;
+    msg:testnames," ",string res;$[all (1 <> res;not "" ~ reason);" because ",reason;""];
+    priv.println msg;
+    :(::)];
+  priv.print priv.testResults res;
+  };
 
 priv.executeSpecial:{[func;suiteNameS;specialNameS]
   if[(func ~ (::)) or (func ~ ()) or priv.isEmptyFunc[func]; :1b]; // no need to "execute" (::) or () or {}
@@ -118,77 +121,77 @@ priv.executeSuite:{[params]
  if[`value ~ subtree 0;
    if[`skip ~ params`mode;
      priv.reportTestResult[params`verbose;suitepathS;`skipped];
-     :`skipped];
+     :enlist `path`result!(params`currPath;`skipped)];
    if[`exec ~ params`mode;
-     :$[pm ~ `subpath;priv.executeTest . (subtree 1; @[params;`tns;:;suitepathS]);`$()]];
+     :$[pm ~ `subpath;enlist priv.executeTest . (subtree 1; @[params;`tns;:;suitepathS]);`$()]];
    '"qtb: unknown mode ",string params`mode];
  
  if[not `nodes ~ subtree 0;'"qtb: Unexpected result from .tree.getLeaves[]"];
  // execute beforealls
  if[`exec ~ params`mode;
-  if[not priv.executeSpecial[subtree[1;priv.BeforeAllTag];suitepathS;"BEFOREALL"];
-   params[`mode]:`skip]];
+   if[not priv.executeSpecial[subtree[1;priv.BeforeAllTag];suitepathS;"BEFOREALL"];
+     params[`mode]:`skip]];
 
- xa:@[;`overrides;,[;$[(::) ~ co:subtree[1;priv.OverrideTag];();co]]]
-      @[;`aftereach;,[;subtree[1;priv.AfterEachTag]]]
-        @[;`beforeeach;,[;subtree[1;priv.BeforeEachTag]]] params;
+  xa:@[;`overrides;,[;$[(::) ~ co:subtree[1;priv.OverrideTag];();co]]]
+       @[;`aftereach;,[;subtree[1;priv.AfterEachTag]]]
+         @[;`beforeeach;,[;subtree[1;priv.BeforeEachTag]]] params;
 
- branches:(),$[pm ~ `prefix;first {[bp;cp] count[cp] _ bp} . params`basepath`currPath;(key subtree 1) except priv.Tags,`];
- res:raze {[f;p;k] f @[p;`currPath;,[;k]]}[.z.s;xa] each branches;
+  branches:(),$[pm ~ `prefix;first {[bp;cp] count[cp] _ bp} . params`basepath`currPath;(key subtree 1) except priv.Tags,`];
+  res:raze {[f;p;k] f @[p;`currPath;,[;k]]}[.z.s;xa] each branches;
  
- // execute afteralls
- if[`exec ~ params`mode;
-  if[not priv.executeSpecial[subtree[1;priv.AfterAllTag];suitepathS;"AFTERALL"];
-   :(count res)#`broke]];
+  // execute afteralls
+  if[`exec ~ params`mode;
+    if[not priv.executeSpecial[subtree[1;priv.AfterAllTag];suitepathS;"AFTERALL"];
+      :update result:`broke from res]];
  
  :res;
  };
 
-// params: `nocatch`beforeeach`aftereach`tns`overrides`verbose
+// params: `nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath
 priv.executeTest:{[tf;params]
- if[params`verbose;1 params`tns];
+  if[params`verbose;priv.print params`tns];
 
- if[1 <> countargs tf;
-   priv.reportTestResult . (params`verbose`tns),(`broke;"invalid test function");
-   :`broke];
+  if[1 <> countargs tf;
+    priv.reportTestResult . (params`verbose`tns),(`broke;"invalid test function");
+    :`path`result!(params`currPath;`broke)];
  
- // apply overrides
- priv.CURRENT_OVERRIDES:priv.applyOverrides params`overrides;
+  // apply overrides
+  priv.CURRENT_OVERRIDES:priv.applyOverrides params`overrides;
  
- // execute beforeEaches
- if[not all 1b,priv.executeSpecial[;params`tns;"BEFOREEACH"] each params`beforeeach;
-   priv.reportTestResult . (params`verbose`tns),(`broke;"beforeeach failure");
-   :`broke];
+  // execute beforeEaches
+  if[not all 1b,priv.executeSpecial[;params`tns;"BEFOREEACH"] each params`beforeeach;
+    priv.reportTestResult . (params`verbose`tns),(`broke;"beforeeach failure");
+    :`path`result!(params`currPath;`broke)];
 
- resetFuncallLog[];
+  resetFuncallLog[];
  
- // execute test
- tres:$[params`nocatch;(`success;tf[]);catchX[tf;`]];
+  // execute test
+  tres:$[params`nocatch;(`success;tf[]);catchX[tf;`]];
  
- // execute afterEaches
- aeres:all 1b,priv.executeSpecial[;params`tns;"AFTEREACH"] each params`aftereach;
+  // execute afterEaches
+  aeres:all 1b,priv.executeSpecial[;params`tns;"AFTEREACH"] each params`aftereach;
  
- // revert all overrides
- priv.revertOverrides priv.CURRENT_OVERRIDES;
- priv.CURRENT_OVERRIDES:0#priv.CURRENT_OVERRIDES;
+  // revert all overrides
+  priv.revertOverrides priv.CURRENT_OVERRIDES;
+  priv.CURRENT_OVERRIDES:0#priv.CURRENT_OVERRIDES;
   
- res:$[not aeres;(`broke;"aftereach failure");
-       `exceptn ~ tres 0;(`error;"exception: ",tres 1);
-       (`success;0b) ~ tres;(`failed;"");
-       (`success;1b) ~ tres;(`success;"");
-       `success ~ tres 0;(`broke;"unexpected return value");
-                         '"qtb: unexpected test result"];
+  res:$[not aeres;(`broke;"aftereach failure");
+        `exceptn ~ tres 0;(`error;"exception: ",tres 1);
+        (`success;0b) ~ tres;(`failed;"");
+        (`success;1b) ~ tres;(`succeeded;"");
+        `success ~ tres 0;(`broke;"unexpected return value");
+                          '"qtb: unexpected test result"];
 
- priv.reportTestResult . (params`verbose`tns),res;
- :res 0;
- };
+  priv.reportTestResult . (params`verbose`tns),res;
+  :`path`result!(params`currPath;res 0);
+  };
 
 priv.execute:{[catchX;basepath] 
   pn:$[any basepath ~/: (`;(::);());`$();basepath,()];
   if[11 <> type pn;'"qtb: invalid inclusion path"];
-  res:priv.executeSuite `nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(catchX;pn;();();priv.genDict;`$();`exec;0b);
-  :((),`success) ~ distinct res;
-   };
+  res::priv.executeSuite `nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(catchX;pn;();();priv.genDict;`$();`exec;0b);
+  :all `succeeded ~/: exec result from res;
+  };
 
 priv.applyOverride:{[vname;newval]
   currval:$[undef:() ~ key vname;(::);eval vname];
