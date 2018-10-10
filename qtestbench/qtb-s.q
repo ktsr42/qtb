@@ -189,8 +189,7 @@ priv.executeTest:{[tf;params]
 priv.execute:{[catchX;basepath] 
   pn:$[any basepath ~/: (`;(::);());`$();basepath,()];
   if[11 <> type pn;'"qtb: invalid inclusion path"];
-  res:priv.executeSuite `nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(catchX;pn;();();priv.genDict;`$();`exec;0b);
-  :all `succeeded ~/: exec result from res;
+  :priv.executeSuite `nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(catchX;pn;();();priv.genDict;`$();`exec;0b);
   };
 
 priv.applyOverride:{[vname;newval]
@@ -268,9 +267,7 @@ resetFuncallLog:{[] priv.FUNCALL_LOG::emptyFuncallLog[]; };
 
 resetFuncallLog[]; // ensure that the table exists
 
-logFuncall:{[funcname;argList]
-  `.qtb.priv.FUNCALL_LOG upsert (funcname;argList);
-  };
+logFuncall:{[funcname;argList] `.qtb.priv.FUNCALL_LOG upsert (funcname;argList); };
 
 getFuncallLog:{[] priv.FUNCALL_LOG };
 
