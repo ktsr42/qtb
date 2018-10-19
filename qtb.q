@@ -42,7 +42,6 @@
 // * execute afterAll
 
 // TODO: Logging/output control, including support for different log levels
-// TODO: Consider making arguments to executeSuite and executeTest dictionaries
 
 // a simple tree library
 //
@@ -359,6 +358,12 @@ priv.execute:{[catchX;basepath]
   :res;
   };
 
+priv.start:{[ca]
+  xp::`nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(ca`debug;`$();();();priv.genDict;`$();`exec;ca`verbose);
+  res::priv.executeSuite xp;priv.println "";
+  priv.testsComplete[ca`verbose;res];
+  };
+
 priv.applyOverride:{[vname;newval]
   currval:$[undef:() ~ key vname;(::);eval vname];
   vname set newval;
@@ -379,6 +384,20 @@ priv.revertOverride:{[vname;val;undef]
   };
 
 priv.revertOverrides:{[overrides] {[d] priv.revertOverride . d`vname`origValue`undef} each overrides; }
+
+
+priv.tbl2dict:{[cls;t] (!) . (0!t) cls };
+priv.dict2tbl:{[cls;d] 1!flip cls!(key;value) @\: d};
+
+priv.CmdlineFlags:([param:`run`verbose`junit`debug] dflt:(0b;0b;`;0b));
+priv.CmdlineFlagsD:priv.tbl2dict[`param`dflt;priv.CmdlineFlags];
+
+priv.parseCmdline:{[zx]
+  args0:{delete from x where not "qtb-" ~/: 4#/:param } update param:string param from 0!priv.dict2tbl[`param`arg] priv.genDict,.Q.opt zx;
+  args1:priv.CmdlineFlags lj 1!([] param:enlist`; arg:enlist(::)),update `$4_/:param from args0;
+  args2:update argv:{[dflt;args] $[(::) ~ args;dflt;all (() ~ args;-1h = type dflt);not dflt;type[dflt]$first args]}'[dflt;arg] from args1;
+  :priv.tbl2dict[`param`argv] args2;
+  };
 
 // Public Interface
 
@@ -478,3 +497,14 @@ countargs:{[fp]
   // (num args of base function) less number of arguments provided in the projection
   (count (value basef) 1) - sum not (::) ~/: 1 _ mfp };
 
+
+///////////////////////////////
+// run with command-line paramaters
+run:{[]
+ if[all (not null .z.f;0 < count .z.x);
+  args:priv.parseCmdline .z.x;
+  if[args`run;
+    r:@[{(1b;.qtb.priv.start x)};args;(0b;)];
+    if[not r 0;-1 "Caught exception: ",r 1];
+    if[not args`debug;exit r 0]]];
+  };

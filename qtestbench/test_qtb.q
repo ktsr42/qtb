@@ -660,8 +660,18 @@ callLog_all:{[]
        enlist exp_callLog ~ .qtb.getFuncallLog[];
   };
 
+parseCmdline_all:{[]
+  baseres:`run`verbose`junit`debug!(0b;0b;`;0b);
+  r1:baseres ~ .qtb.priv.parseCmdline ();
+  r2:@[baseres;`verbose;:;1b] ~ .qtb.priv.parseCmdline enlist "-qtb-verbose";
+  r3:@[baseres;`verbose;:;1b] ~ .qtb.priv.parseCmdline ("-qtb-verbose";(),"1");
+  r4:@[baseres;`run;:;1b] ~ .qtb.priv.parseCmdline enlist "-qtb-run";
+  r5:@[baseres;`debug;:;1b] ~ .qtb.priv.parseCmdline enlist "-qtb-debug";
+  r6:@[baseres;`junit`run;:;(`xxx;1b)] ~ .qtb.priv.parseCmdline ("-qtb-junit";"xxx";"-qtb-run");
+  :all (r1;r2;r3;r4;r5;r6);
+  };
 
 ALLTESTS:`privExecuteN_all,execute_SUITE,catchX_SUITE,checkX_SUITE,countargs_SUITE,isEmptyFunc_SUITE,
          executeSpecial_SUITE,`matchPaths_all,executeSuite_SUITE,executeTestN_SUITE,`applyOverrides_all,
-         `applyOverride_all`revertOverride_all`callLog_all;
+         `applyOverride_all`revertOverride_all`callLog_all`parseCmdline_all;
 

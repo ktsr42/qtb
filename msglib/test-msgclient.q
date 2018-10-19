@@ -215,3 +215,5 @@
   msgs,:enlist .msg.nextMsg[];
   all .qtb.matchValue ./: (("Receives messages";(m1;m2;m3;();());1 _ msgs);
                              ("Message queue";([] srcAddr:enlist `; destAddr:enlist `; msg:enlist (::));.msg.priv.MESSAGES)) }];
+
+.qtb.run[];

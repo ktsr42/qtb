@@ -177,3 +177,6 @@
                                  "Successfully processed request, result: ::";
                                  "Request processing complete"));
                    .qtb.getFuncallLog[]]}];
+
+
+.qtb.run[];

@@ -100,3 +100,6 @@ answer:42;
   `.dispatch.FUNCTIONS upsert (`testfunc;`.dpcall.testfunc7;-11 -6 10h);
   r:.qtb.checkX[.dispatch.call;`testfunc`x`y`z;"dispatch: arg type mismatch"];
   r and .qtb.matchValue["testfunc result"; .qtb.emptyFuncallLog[];.qtb.getFuncallLog[]] }];
+
+
+.qtb.run[];
