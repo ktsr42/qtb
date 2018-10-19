@@ -101,5 +101,7 @@ answer:42;
   r:.qtb.checkX[.dispatch.call;`testfunc`x`y`z;"dispatch: arg type mismatch"];
   r and .qtb.matchValue["testfunc result"; .qtb.emptyFuncallLog[];.qtb.getFuncallLog[]] }];
 
-
+.qtb.suite`xx;
+.qtb.addTest[`xx`fail;{[] 0b}];
+.qtb.addTest[`xx`error;{[] '"poof"}];
 .qtb.run[];

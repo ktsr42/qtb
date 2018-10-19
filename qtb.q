@@ -251,16 +251,15 @@ priv.println:-1;
 
 priv.testsComplete:{[verbose;res]
   priv.println "";  // write cr
-  if[verbose;show res];
+  if[count fails:select from res where result <> `succeeded; show fails];
   };
 
-priv.testResults:`succeeded`failed`broke`invalid`skipped!".FBIS";
+priv.testResults:`succeeded`failed`error`broke`invalid`skipped!".EFBIS";
 
 priv.reportTestResult:{[verbose;testnames;res;reason]
   if[null priv.testResults res;'"qtb: invalid test result: ",string res];
   if[verbose;
-    msg:testnames," ",string res;$[all (1 <> res;not "" ~ reason);" because ",reason;""];
-    priv.println msg;
+    priv.println testnames," ",string[res],$[all (`succeeded <> res;not "" ~ reason);" because ",reason;""];
     :(::)];
   priv.print priv.testResults res;
   };
@@ -313,8 +312,6 @@ priv.executeSuite:{[params]
 
 // params: `nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath
 priv.executeTest:{[tf;params]
-  if[params`verbose;priv.print params`tns];
-
   if[1 <> countargs tf;
     priv.reportTestResult . (params`verbose`tns),(`broke;"invalid test function");
     :`path`result!(params`currPath;`broke)];
@@ -359,9 +356,9 @@ priv.execute:{[catchX;basepath]
   };
 
 priv.start:{[ca]
-  xp::`nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(ca`debug;`$();();();priv.genDict;`$();`exec;ca`verbose);
-  res::priv.executeSuite xp;priv.println "";
-  priv.testsComplete[ca`verbose;res];
+  xp:`nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(ca`debug;`$();();();priv.genDict;`$();`exec;ca`verbose);
+  res:priv.executeSuite xp;priv.println "";
+  :priv.testsComplete[ca`verbose;res];
   };
 
 priv.applyOverride:{[vname;newval]
@@ -501,10 +498,10 @@ countargs:{[fp]
 ///////////////////////////////
 // run with command-line paramaters
 run:{[]
- if[all (not null .z.f;0 < count .z.x);
+  if[any (null .z.f;0 = count .z.x);:(::)];
   args:priv.parseCmdline .z.x;
-  if[args`run;
-    r:@[{(1b;.qtb.priv.start x)};args;(0b;)];
-    if[not r 0;-1 "Caught exception: ",r 1];
-    if[not args`debug;exit r 0]]];
+  if[not args`run;:(::)];
+  r:@[{(1b;.qtb.priv.start x)};args;(0b;)];
+  if[not r 0; $[args`debug;'r 1;priv.println "Caught exception: ",r 1]];
+  if[not args`debug;exit 1];
   };
