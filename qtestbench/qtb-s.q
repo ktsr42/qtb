@@ -41,8 +41,6 @@
 // * recurse into sub-branches, passing down the enhanced beforeEach and afterEach lists
 // * execute afterAll
 
-// TODO: Logging/output control, including support for different log levels
-
 \l tree.q
 
 \d .qtb
@@ -69,7 +67,7 @@ priv.addSpecial:{[special;path;func] priv.ALLTESTS:.tree.insertLeaf[priv.ALLTEST
 
 priv.pathString:{[path] ".","." sv string path,() };
 
-priv.isEmptyFunc:{[func] 0x100001 ~ @[{first value x};func;{[func;err] -1 "Error, not a function: ",-3!func;`err}[func;]] };
+priv.isEmptyFunc:{[func] 0x100001 ~ @[{first value x};func;{[func;err] priv.println "Error, not a function: ",-3!func;`err}[func;]] };
 
 // () `x`y  -> b is subpath of a
 // `  `x`y  -> b is subpath of a
@@ -89,9 +87,44 @@ priv.matchPaths:{[pa;pb]
 priv.print:1;
 priv.println:-1;
 
-priv.testsComplete:{[verbose;res]
-  priv.println "";  // write cr
-  if[count fails:select from res where result <> `succeeded; show fails];
+priv.testResTree2Tbl:{[cp;r]
+  ncp:cp,first r;
+  :$[0 = type r;raze .z.s[ncp]'[1 _ r];
+     11h = type r;enlist `path`res!(ncp;r 1);
+                 '"error"];
+  };
+
+priv.testRes2JunitXml:{[idl;r]
+  t:type r;  ids:idl#" ";  res:(); 
+  if[0h = t;
+    testcount:count tests:r where 11h = type each r;
+    failures:0 + sum `failed = tests[;1];
+    success:0 + sum `succeeded = tests[;1];
+    tsline:ids,"<testsuite name=\"",string[first r],"\" errors=\"",string[testcount - success + failures],"\" ";
+    tsline,:"tests=\"",string[testcount],"\" failures=\"",string[failures],"\">";
+    res:enlist[tsline],raze[.z.s[idl + 2]'[1 _ r]],enlist ids,"</testsuite>"];
+  if[11h = t;
+    tcline:ids,"<testcase name=\"",string[first r],"\"";
+    if[`succeeded = r 1;res:enlist tcline," />"];
+    if[`succeeded <> r 1;
+      tcline,:">";
+      failmsg:ids,"  <failure message=\"test failure\">",string[r 1],"</failure>";
+      res:(tcline;failmsg;ids,"</testcase>")]];
+  if[res ~ ();'"Invalid result tree: ",string r;];
+  :res;
+  };
+
+priv.junitXmlDoc:{[res]
+  junitxml:("<?xml version=\"1.0\" encoding=\"UTF-8\"?>";"<testsuites>");
+  junitxml,:priv.testRes2JunitXml[2;res];
+  :junitxml,enlist"</testsuites>";
+  };
+
+priv.testsComplete:{[verbose;junitfile;res]
+  if[not null junitfile; hsym[junitfile] 0: priv.junitXmlDoc res];
+  rt:priv.testResTree2Tbl[`$();res];
+  if[verbose;show rt; :(::)];
+  if[count fails:select from rt where res <> `succeeded; show fails];
   };
 
 priv.testResults:`succeeded`failed`error`broke`invalid`skipped!".EFBIS";
@@ -108,53 +141,58 @@ priv.executeSpecial:{[func;suiteNameS;specialNameS]
   if[(func ~ (::)) or (func ~ ()) or priv.isEmptyFunc[func]; :1b]; // no need to "execute" (::) or () or {}
   ex:@[{[f] f[];`ok};func;{x}];
   if[not `ok ~ ex;
-    -1 suiteNameS," ",specialNameS," threw exception: ",ex;
+    priv.println suiteNameS," ",specialNameS," threw exception: ",ex;
     :0b];
   :1b;
   };
 
 // params `nocatch`basepath`beforeach`aftereach`overrides`currPath`mode`verbose
 priv.executeSuite:{[params]
- pm:priv.matchPaths . params`basepath`currPath;
- if[`mismatch ~ pm;'"qtb: path mismatch"];
- suitepathS:priv.pathString params`currPath;
- errf:{[sp;err] if[err ~ "tree: invalid path"; -1 sp," is not a valid suite or test."; :`invpath]; 'err}[suitepathS;];
- subtree:.[.tree.getLeaves;(priv.ALLTESTS;params`currPath);errf];
- if[subtree ~ `invpath; '"qtb: invalid path"];
- if[`value ~ subtree 0;
-   if[`skip ~ params`mode;
-     priv.reportTestResult[params`verbose;suitepathS;`skipped];
-     :enlist `path`result!(params`currPath;`skipped)];
-   if[`exec ~ params`mode;
-     :$[pm ~ `subpath;enlist priv.executeTest . (subtree 1; @[params;`tns;:;suitepathS]);`$()]];
-   '"qtb: unknown mode ",string params`mode];
+  pm:priv.matchPaths . params`basepath`currPath;
+  if[`mismatch ~ pm;'"qtb: path mismatch"];
+  suitepathS:priv.pathString params`currPath;
+  errf:{[sp;err] if[err ~ "tree: invalid path"; priv.println sp," is not a valid suite or test."; :`invpath]; 'err}[suitepathS;];
+  suitename:last params`currPath;
+  subtree:.[.tree.getLeaves;(priv.ALLTESTS;params`currPath);errf];
+  if[subtree ~ `invpath; '"qtb: invalid path"];
+  if[`value ~ subtree 0;
+    if[`skip ~ params`mode;
+      priv.reportTestResult[params`verbose;suitepathS;`skipped];
+      :(suitename;`skipped)];
+    if[`exec ~ params`mode;
+      :$[pm ~ `subpath;priv.executeTest . (subtree 1;@[params;`tns;:;suitepathS]);()]];
+    '"qtb: unknown mode ",string params`mode];
  
- if[not `nodes ~ subtree 0;'"qtb: Unexpected result from .tree.getLeaves[]"];
- // execute beforealls
- if[`exec ~ params`mode;
-   if[not priv.executeSpecial[subtree[1;priv.BeforeAllTag];suitepathS;"BEFOREALL"];
-     params[`mode]:`skip]];
+  if[not `nodes ~ subtree 0;'"qtb: Unexpected result from .tree.getLeaves[]"];
+  // execute beforealls
+  if[`exec ~ params`mode;
+    if[not priv.executeSpecial[subtree[1;priv.BeforeAllTag];suitepathS;"BEFOREALL"];
+      params[`mode]:`skip]];
 
-  xa:@[;`overrides;,[;$[(::) ~ co:subtree[1;priv.OverrideTag];();co]]]
-       @[;`aftereach;,[;subtree[1;priv.AfterEachTag]]]
-         @[;`beforeeach;,[;subtree[1;priv.BeforeEachTag]]] params;
+  // overrides, before- and aftereach trickle down the tree
+  xa:@[;`overrides;,[;$[(::) ~ co:subtree[1;priv.OverrideTag];();co]]]   // append the overrides for this suite
+       @[;`aftereach;,[;subtree[1;priv.AfterEachTag]]]                   // append the aftereach funcs
+         @[;`beforeeach;,[;subtree[1;priv.BeforeEachTag]]] params;       // append the beforeach funcs
 
+  // iterating into subtrees: if we have a defined prefix and not exhausted it, just take the next element in the target path
+  //                          otherwise we execute each subelement, branch or leaf (test)
   branches:(),$[pm ~ `prefix;first {[bp;cp] count[cp] _ bp} . params`basepath`currPath;(key subtree 1) except priv.Tags,`];
-  res:raze {[f;p;k] f @[p;`currPath;,[;k]]}[.z.s;xa] each branches;
+  res:{[f;p;k] f @[p;`currPath;,[;k]]}[.z.s;xa] each branches;
  
   // execute afteralls
   if[`exec ~ params`mode;
     if[not priv.executeSpecial[subtree[1;priv.AfterAllTag];suitepathS;"AFTERALL"];
-      :update result:`broke from res]];
+      res:.[res;((::);1);:;`broke]]];
  
- :res;
- };
+  :suitename,res;
+  };
 
 // params: `nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath
 priv.executeTest:{[tf;params]
+  testname:last params`currPath;
   if[1 <> countargs tf;
     priv.reportTestResult . (params`verbose`tns),(`broke;"invalid test function");
-    :`path`result!(params`currPath;`broke)];
+    :(testname;`broke)];
  
   // apply overrides
   priv.CURRENT_OVERRIDES:priv.applyOverrides params`overrides;
@@ -162,7 +200,7 @@ priv.executeTest:{[tf;params]
   // execute beforeEaches
   if[not all 1b,priv.executeSpecial[;params`tns;"BEFOREEACH"] each params`beforeeach;
     priv.reportTestResult . (params`verbose`tns),(`broke;"beforeeach failure");
-    :`path`result!(params`currPath;`broke)];
+    :(testname;`broke)];
 
   resetFuncallLog[];
  
@@ -184,7 +222,7 @@ priv.executeTest:{[tf;params]
                           '"qtb: unexpected test result"];
 
   priv.reportTestResult . (params`verbose`tns),res;
-  :`path`result!(params`currPath;res 0);
+  :(testname;res 0);
   };
 
 priv.execute:{[catchX;basepath] 
@@ -198,7 +236,7 @@ priv.execute:{[catchX;basepath]
 priv.start:{[ca]
   xp:`nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(ca`debug;`$();();();priv.genDict;`$();`exec;ca`verbose);
   res:priv.executeSuite xp;priv.println "";
-  :priv.testsComplete[ca`verbose;res];
+  :(priv.testsComplete . ca`verbose`junit) res;
   };
 
 priv.applyOverride:{[vname;newval]
@@ -263,7 +301,7 @@ executeDebug:priv.execute[1b;];
 // Might need a testpath argument as well
 matchValue:{[msg;expValue;actValue]
   if[expValue ~ actValue; :1b];
-  -1 msg," does not match. Expected: ",(-3! expValue),", actual: ",-3! actValue;
+  priv.println msg," does not match. Expected: ",(-3! expValue),", actual: ",-3! actValue;
   0b };
 
 // Wrapper function to catch exceptions
@@ -277,9 +315,9 @@ catchX:{[f;args]
 // Check if a function throws an expected exception
 checkX:{[f;args;msg]
   res:catchX[f;args];
-  $[`success ~ first res; [-1 "No exception was thrown"; 0b];
+  $[`success ~ first res; [priv.println "No exception was thrown"; 0b];
     (`exceptn;msg) ~ res; 1b;
-    `exceptn ~ first res; [-1 "Expected exception \"",msg,"\", but got \"",last[res],"\""; 0b];
+    `exceptn ~ first res; [priv.println "Expected exception \"",msg,"\", but got \"",last[res],"\""; 0b];
       '"qtb: catchX failed to return a valid result"] };
 
 // A logging mechanism for function calls
