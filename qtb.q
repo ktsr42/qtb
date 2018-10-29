@@ -283,7 +283,6 @@ priv.junitXmlDoc:{[res]
 priv.testsComplete:{[verbose;junitfile;res]
   if[not null junitfile; hsym[junitfile] 0: priv.junitXmlDoc res];
   rt:priv.testResTree2Tbl[`$();res];
-  if[verbose;show rt; :(::)];
   if[count fails:select from rt where res <> `succeeded; show fails];
   };
 
