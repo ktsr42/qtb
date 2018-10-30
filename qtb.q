@@ -248,13 +248,13 @@ priv.print:1;
 priv.println:-1;
 
 priv.testResTree2Tbl:{[cp;r]
-  ncp:cp,first r;
+  ncp:cp,$[all (0 = count cp;null first r);();first r];
   :$[0 = type r;raze .z.s[ncp]'[1 _ r];
-     11h = type r;enlist `path`res!(ncp;r 1);
+     11h = type r;enlist `path`result!(ncp;r 1);
                  '"error"];
   };
 
-priv.testRes2JunitXml:{[idl;r]
+priv.testResTree2JunitXml:{[idl;r]
   t:type r;  ids:idl#" ";  res:(); 
   if[0h = t;
     testcount:count tests:r where 11h = type each r;
@@ -276,14 +276,15 @@ priv.testRes2JunitXml:{[idl;r]
 
 priv.junitXmlDoc:{[res]
   junitxml:("<?xml version=\"1.0\" encoding=\"UTF-8\"?>";"<testsuites>");
-  junitxml,:priv.testRes2JunitXml[2;res];
+  junitxml,:priv.testResTree2JunitXml[2;res];
   :junitxml,enlist"</testsuites>";
   };
 
 priv.testsComplete:{[verbose;junitfile;res]
   if[not null junitfile; hsym[junitfile] 0: priv.junitXmlDoc res];
   rt:priv.testResTree2Tbl[`$();res];
-  if[count fails:select from rt where res <> `succeeded; show fails];
+  if[count fails:select from rt where result <> `succeeded; show fails];
+  :rt;
   };
 
 priv.testResults:`succeeded`failed`error`broke`invalid`skipped!".EFBIS";
@@ -388,14 +389,14 @@ priv.execute:{[catchX;basepath]
   pn:$[any basepath ~/: (`;(::);());`$();basepath,()];
   if[11 <> type pn;'"qtb: invalid inclusion path"];
   res:priv.executeSuite `nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(catchX;pn;();();priv.genDict;`$();`exec;0b);
-  priv.testsComplete[0b;res];
-  :res;
+  priv.println"";
+  :priv.testsComplete[0b;`;res];
   };
 
 priv.start:{[ca]
   xp:`nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(ca`debug;`$();();();priv.genDict;`$();`exec;ca`verbose);
   res:priv.executeSuite xp;priv.println "";
-  :(priv.testsComplete . ca`verbose`junit) res;
+  (priv.testsComplete . ca`verbose`junit) res;
   };
 
 priv.applyOverride:{[vname;newval]

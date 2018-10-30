@@ -7,11 +7,11 @@
 
 privExecuteN_all:{[]
   executeSuite_orig:.qtb.priv.executeSuite;
-  res:([] path:(`p`a;`p`b;`p`c); result:3#`succeeded);
-  `.qtb.priv.executeSuite set {[r;y] r}[res];
+  `.qtb.priv.executeSuite set {[r;y] r}[`p,`a`b`c,\:`succeeded];
   r:.qtb.priv.execute[1b;`];
+  exp_res:([] path:(`p`a;`p`b;`p`c); result:3#`succeeded);
   `.qtb.priv.executeSuite set executeSuite_orig;
-  :res ~ r;
+  :exp_res ~ r;
   };
 
 
@@ -34,7 +34,7 @@ initTestSuite:{[]
   .qtb.addAfterEach[`realtests;{[] execute_realtest_afterEach_counter+::1;}];
   .qtb.addTest[`realtests`a;{[] 0b}];
   .qtb.addTest[`realtests`b;{[] 1b}];
-  `execute_exp_res set (`;(`realtests;`a`failed;`b`succeeded));
+  `execute_exp_res set ([] path:(`realtests`a;`realtests`b); result:`failed`succeeded);
   `print_orig set .qtb.priv.print;
   `.qtb.priv.print set {};
   `println_orig set .qtb.priv.println;
@@ -65,7 +65,7 @@ execute_failBeforeAll:{[]
   .qtb.addBeforeAll[`realtests;{[] execute_realtest_beforeAll_flag::1b;'"fire in the hole!"}];
   tr:.qtb.execute`realtests;
   restoreTestSuite[];
-  r:all .qtb.matchValue ./: (("Return value";(`;(`realtests;`a`skipped;`b`skipped));tr);
+  r:all .qtb.matchValue ./: (("Return value";([] path:(`realtests`a;`realtests`b); result:`skipped`skipped);tr);
                         ("root_beforeAll_flag";1b;execute_root_beforeAll_flag);
                         ("root_afterAll_flag";1b;execute_root_afterAll_flag);
                         ("root_test_flag";0b;execute_root_test_flag);
@@ -79,7 +79,7 @@ execute_alltests:{[]
   initTestSuite[];
   tr:.qtb.execute[];
   restoreTestSuite[];
-  expres:(`;`noexec`failed;(`realtests;`a`failed;`b`succeeded));
+  expres:([] path:((),`noexec;`realtests`a;`realtests`b); result:`failed`failed`succeeded);
   r:all .qtb.matchValue ./: (("Return value";expres;tr);
                         ("root_beforeAll_flag";1b;execute_root_beforeAll_flag);
                         ("root_afterAll_flag";1b;execute_root_afterAll_flag);
@@ -98,7 +98,7 @@ execute_single:{[]
   .qtb.addTest[`realtests`b;{[] execute_realtest_b::0b; 1b}];
   tr:.qtb.execute `realtests`a;
   restoreTestSuite[];
-  r:all .qtb.matchValue ./: (("Return value";(`;(`realtests;`a`succeeded));tr);
+  r:all .qtb.matchValue ./: (("Return value";([] path:enlist `realtests`a; result:enlist `succeeded);tr);
                         ("root_beforeAll_flag";1b;execute_root_beforeAll_flag);
                         ("root_afterAll_flag";1b;execute_root_afterAll_flag);
                         ("root_test_flag";0b;execute_root_test_flag);
@@ -700,7 +700,7 @@ parseCmdline_all:{[]
 
 testResTree2Tbl_all:{[]
   o:.qtb.priv.testResTree2Tbl[`$()] (`suite;`test1`RES;`test2`RES;(`suite;`test3`RES;`test4`RES));
-  :o ~ ([] path:(`suite`test1;`suite`test2;`suite`suite`test3;`suite`suite`test4); res:4#`RES);
+  :o ~ ([] path:(`suite`test1;`suite`test2;`suite`suite`test3;`suite`suite`test4); result:4#`RES);
   };
 
 testResTree2JunitXml_all:{[]
@@ -729,7 +729,7 @@ testResTree2JunitXml_all:{[]
       "    <testcase name=\"sstest2\" />";
       "  </testsuite>";
       "</testsuite>");
-  :all (~) .' flip ((o1;o2;o3;o4);.qtb.priv.testRes2JunitXml[0]'[(in1;in2;in3;in4)]);
+  :all (~) .' flip ((o1;o2;o3;o4);.qtb.priv.testResTree2JunitXml[0]'[(in1;in2;in3;in4)]);
   };
 
 ALLTESTS:`privExecuteN_all,execute_SUITE,catchX_SUITE,checkX_SUITE,countargs_SUITE,isEmptyFunc_SUITE,
