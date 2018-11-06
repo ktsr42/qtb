@@ -660,15 +660,15 @@ testf3:{(`f2;x;y)};
 
 callLog_all:{[]
   .qtb.resetFuncallLog[]; 
-  r11:(.qtb.callLog[`testf1;(::)])[]; 
-  r12:(.qtb.callLog[`testf1;`x])[];
+  r11:(.qtb.callLogNoret`testf1)[]; 
+  r12:(.qtb.callLogSimple[`testf1;`x])[];
   r13:(.qtb.callLog[`testf1;{(`a;x)}])[];
   e1:.[.qtb.callLog;(`testf1;{x+y});(::)];
-  r21:(.qtb.callLog[`testf2;([] c:1 2 3)])[3];
+  r21:(.qtb.callLogSimple[`testf2;([] c:1 2 3)])[3];
   r22:(.qtb.callLog[`testf2;{(`b;x)}])[4];
   r23:(.qtb.callLog[`testf2;{(`b;x)}])[(`x;4)];
   e2:.[.qtb.callLog;(`testf2;{x+y});(::)];
-  r31:(.qtb.callLog[`testf3;`a`b!1 2])[`x;2];
+  r31:(.qtb.callLogSimple[`testf3;`a`b!1 2])[`x;2];
   r32:(.qtb.callLog[`testf3;{(`x;x;y)}])[`x;2];
   r33::(.qtb.callLog[`testf3;{(`x;x;y)}])[1 2;`x`y];
   e3:.[.qtb.callLog;(`testf3;{x+y+z});(::)];

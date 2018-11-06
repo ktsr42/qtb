@@ -5,7 +5,7 @@
 
 // --- registerClient is trivial
 
-.qtb.setOverrides[`;enlist[`lg]!enlist .qtb.callLogS`lg];
+.qtb.setOverrides[`;enlist[`lg]!enlist .qtb.callLogNoret`lg];
 
 // *** processRegistration
 .qtb.suite`processRegistration;
@@ -26,7 +26,7 @@
 
 .qtb.addTest[`processRegistration`replace;{[]
   .qtb.override[`CONNS;([primaryAddress:el `me] clientHandle:el 22)];
-  .qtb.override[`connectionDropped;.qtb.callLogS`connectionDropped];
+  .qtb.override[`connectionDropped;.qtb.callLogNoret`connectionDropped];
   .qtb.override[`isValidConnHandle;{[ignore] 0b}];
   r:processRegistration[23;`me];
   checks:(("CONNS table";([primaryAddress:el `me] clientHandle:el 23);CONNS);
@@ -54,7 +54,7 @@
 
 // *** sendMessage
 .qtb.suite`sendMessage;
-.qtb.setOverrides[`sendMessage;`CONNS`isRegisteredClient`submitMessage!(([primaryAddress:`me`you] clientHandle:10 11);.qtb.callLog[`isRegisteredClient;1b];.qtb.callLogS`submitMessage)];
+.qtb.setOverrides[`sendMessage;`CONNS`isRegisteredClient`submitMessage!(([primaryAddress:`me`you] clientHandle:10 11);.qtb.callLogSimple[`isRegisteredClient;1b];.qtb.callLogNoret`submitMessage)];
 
 .qtb.addTest[`sendMessage`aok;{[]
   sendMessage[10;`me;`you;"are you ok?"];
@@ -76,7 +76,7 @@
      .qtb.getFuncallLog[]] }];
 
 .qtb.addTest[`sendMessage`notregistered;{[]
-  .qtb.override[`isRegisteredClient;.qtb.callLog[`isRegisteredClient;0b]];
+  .qtb.override[`isRegisteredClient;.qtb.callLogSimple[`isRegisteredClient;0b]];
   sendMessage[10;`me;`him;"are you ok?"];
   .qtb.matchValue["Call log";
      ([] functionName:``lg`isRegisteredClient;
@@ -86,14 +86,14 @@
 
 // *** submitMessage
 .qtb.suite`submitMessage;
-.qtb.setOverrides[`submitMessage;enlist[`send]!enlist .qtb.callLogS`send];
+.qtb.setOverrides[`submitMessage;enlist[`send]!enlist .qtb.callLogNoret`send];
 
 .qtb.addTest[`submitMessage`ok;{[]
   submitMessage["ayt?";`aclient;10];
   .qtb.matchValue["Call log";([] functionName:``send; arguments:((::);(10;"ayt?")));.qtb.getFuncallLog[]]} ];
 
 .qtb.addTest[`submitMessage`fail;{[]
-  .qtb.override[`send;.qtb.callLog[`send;{[h;msg] '"oops!"}]];
+  .qtb.override[`send;.qtb.callLogSimple[`send;{[h;msg] '"oops!"}]];
   submitMessage["dang!";`badboy;11];
   .qtb.matchValue["Call log";
                   ([] functionName:``send`lg; arguments:((::);(11;"dang!");"Failed to send message to client badboy: oops!"));
@@ -133,7 +133,7 @@
 
 .qtb.addTest[`connectionDropped`sanitycheck;{[]
   .qtb.override[`CONNS;([primaryAddress:`a`b]; clientHandle:3 3i)];
-  .qtb.override[`die;.qtb.callLogS`die];
+  .qtb.override[`die;.qtb.callLogNoret`die];
   connectionDropped 3i;
   :.qtb.getFuncallLog[] ~ ([] functionName:``die`lg; arguments:((::);"Corrupt connection tracking";"Client a closed the connection"));
   }];
@@ -142,7 +142,7 @@
 
 .qtb.suite`receiveMsg;
 
-.qtb.setOverrides[`receiveMsg;enlist[`.dispatch.call]!enlist .qtb.callLogS`.dispatch.call];
+.qtb.setOverrides[`receiveMsg;enlist[`.dispatch.call]!enlist .qtb.callLogNoret`.dispatch.call];
 
 .qtb.addTest[`receiveMsg`ok;{[]
   receiveMsg[10;(`afunc;`arg)];
@@ -156,7 +156,7 @@
                    .qtb.getFuncallLog[]]}];
 
 .qtb.addTest[`receiveMsg`error;{[]
-  .qtb.override[`.dispatch.call;.qtb.callLog[`.dispatch.call;{[req] '"whoops!"}]];
+  .qtb.override[`.dispatch.call;.qtb.callLogSimple[`.dispatch.call;{[req] '"whoops!"}]];
   receiveMsg[3;(`afunc;`xx)];
   .qtb.matchValue["Function call log";
                   E::([] functionName:``lg`.dispatch.call`lg`lg;

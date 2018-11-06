@@ -434,6 +434,7 @@ priv.parseCmdline:{[zx]
   :priv.tbl2dict[`param`argv] args2;
   };
 
+
 // Public Interface
 
 suite:{[path]
@@ -518,9 +519,17 @@ callLogComplex:{[fname;rvof;nargs]
   :value "{[",arglist,"] args:(),(",arglist,"); .qtb.logFuncall[`",string[fname],";args];",rvs,"}";
   };
  
-callLog:callLogComplex[;;0N];
+callLog:{[fname;wrapf]
+  if[100h > type wrapf;'".qtb.callLog: not a function"];
+  :callLogComplex[fname;wrapf;0N];
+  };
 
-callLogS:callLogComplex[;(::);0N];
+callLogSimple:{[fname;retval]
+  if[100h < type retval;'".qtb.callLogSimple: not value"];
+  :callLogComplex[fname;retval;0N];
+ };
+
+callLogNoret:callLogComplex[;(::);0N];
 
 countargs:{[fp]
   if[100 > type fp; :-1];  // not a function

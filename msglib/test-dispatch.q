@@ -52,15 +52,15 @@ answer:42;
 .dpcall.testfunc7:{[a;b;c]};
 
 .qtb.addTest[`call`base;{[]
-  .qtb.override[`.dpcall.testfunc1;.qtb.callLogS`.dpcall.testfunc1];
+  .qtb.override[`.dpcall.testfunc1;.qtb.callLogNoret`.dpcall.testfunc1];
   `.dispatch.FUNCTIONS upsert (`testfunc;`.dpcall.testfunc1;-11 -7 10h);
   .dispatch.call (`testfunc;`a;22;"yo!");
   .qtb.matchValue["testfunc result";
-                    ([] functionName:``.dpcall.testfunc1; arguments:((::);(`a;22;"yo!")));
-                    .qtb.getFuncallLog[]] }];
+                    E::([] functionName:``.dpcall.testfunc1; arguments:((::);(`a;22;"yo!")));
+                    A::.qtb.getFuncallLog[]] }];
 
 .qtb.addTest[`call`anyarg;{[]
-  .qtb.override[`.dpcall.testfunc2;.qtb.callLogS`.dpcall.testfunc2];
+  .qtb.override[`.dpcall.testfunc2;.qtb.callLogNoret`.dpcall.testfunc2];
   `.dispatch.FUNCTIONS upsert (`testfunc;`.dpcall.testfunc2;0N);
   .dispatch.call (`testfunc;1 2);
   .qtb.matchValue["testfunc result";
@@ -68,7 +68,7 @@ answer:42;
                     .qtb.getFuncallLog[]] }];
 
 .qtb.addTest[`call`onearg;{[]
-  .qtb.override[`.dpcall.testfunc3;.qtb.callLogS`.dpcall.testfunc3];
+  .qtb.override[`.dpcall.testfunc3;.qtb.callLogNoret`.dpcall.testfunc3];
   `.dispatch.FUNCTIONS upsert (`testfunc;`.dpcall.testfunc3;-11h);
   .dispatch.call `testfunc`xxx;
   .qtb.matchValue["testfunc result";
@@ -76,7 +76,7 @@ answer:42;
                     .qtb.getFuncallLog[]] }];
 
 .qtb.addTest[`call`noarg;{[]
-  .qtb.override[`.dpcall.testfunc4;.qtb.callLogS`.dpcall.testfunc4];
+  .qtb.override[`.dpcall.testfunc4;.qtb.callLogNoret`.dpcall.testfunc4];
   `.dispatch.FUNCTIONS upsert (`testfunc;`.dpcall.testfunc4;());
   r:.dispatch.call `testfunc;
   .qtb.matchValue["testfunc result";
@@ -84,19 +84,19 @@ answer:42;
                     .qtb.getFuncallLog[]] }];
 
 .qtb.addTest[`call`unknown;{[]
-  .qtb.override[`.dpcall.testfunc5;.qtb.callLogS`.dpcall.testfunc5];
+  .qtb.override[`.dpcall.testfunc5;.qtb.callLogNoret`.dpcall.testfunc5];
   .dispatch.FUNCTIONS::([name:enlist `] realname:enlist `; argTypes:enlist (::));
   r:.qtb.checkX[.dispatch.call;(`testfunc;42);"dispatch: unknown function 'testfunc'"];
   r and .qtb.matchValue["testfunc result"; .qtb.emptyFuncallLog[];.qtb.getFuncallLog[]] }];
 
 .qtb.addTest[`call`numargs;{[]
-  .qtb.override[`.dpcall.testfunc6;.qtb.callLogS`.dpcall.testfunc6];
+  .qtb.override[`.dpcall.testfunc6;.qtb.callLogNoret`.dpcall.testfunc6];
   `.dispatch.FUNCTIONS upsert (`testfunc;`.dpcall.testfunc6;-11 -7 10h);
   r:.qtb.checkX[.dispatch.call;`testfunc`x;"dispatch: function 'testfunc' requires 3 arguments"];
   r and .qtb.matchValue["testfunc result"; .qtb.emptyFuncallLog[];.qtb.getFuncallLog[]] }];
 
 .qtb.addTest[`call`argtype;{[]
-  .qtb.override[`.dpcall.testfunc7;.qtb.callLogS`.dpcall.testfunc7];
+  .qtb.override[`.dpcall.testfunc7;.qtb.callLogNoret`.dpcall.testfunc7];
   `.dispatch.FUNCTIONS upsert (`testfunc;`.dpcall.testfunc7;-11 -6 10h);
   r:.qtb.checkX[.dispatch.call;`testfunc`x`y`z;"dispatch: arg type mismatch"];
   r and .qtb.matchValue["testfunc result"; .qtb.emptyFuncallLog[];.qtb.getFuncallLog[]] }];
@@ -104,4 +104,5 @@ answer:42;
 .qtb.suite`xx;
 .qtb.addTest[`xx`fail;{[] 0b}];
 .qtb.addTest[`xx`error;{[] '"poof"}];
+
 .qtb.run[];

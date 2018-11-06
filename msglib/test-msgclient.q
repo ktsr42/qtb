@@ -9,7 +9,7 @@
 
 // priv.regResult
 .qtb.suite`priv`regResult;
-.qtb.setOverrides[`priv`regResult;`.msg.priv.LOGF`.msg.priv.CONN_STATE`.msg.priv.dropConnection!(.qtb.callLogS`.msg.priv.LOGF;.msg.priv.CONN_STATE;.qtb.callLogS`.msg.priv.dropConnection)];
+.qtb.setOverrides[`priv`regResult;`.msg.priv.LOGF`.msg.priv.CONN_STATE`.msg.priv.dropConnection!(.qtb.callLogNoret`.msg.priv.LOGF;.msg.priv.CONN_STATE;.qtb.callLogNoret`.msg.priv.dropConnection)];
 
 .qtb.addTest[`priv`regResult`success;{[]
   .msg.priv.CONN_STATE::`registration_pending;
@@ -41,7 +41,7 @@
                   .qtb.getFuncallLog[]]}];
 
 .qtb.suite`priv`receiveMsg;
-.qtb.setOverrides[`priv`receiveMsg;`.dispatch.call`.msg.priv.MSGSERVER!(.qtb.callLogS`.dispatch.call;42)]
+.qtb.setOverrides[`priv`receiveMsg;`.dispatch.call`.msg.priv.MSGSERVER!(.qtb.callLogNoret`.dispatch.call;42)]
 
 .qtb.addTest[`priv`receiveMsg`notforus;{[]
   .msg.priv.receiveMsg[10;`yo];
@@ -52,8 +52,8 @@
   .qtb.matchValue["Call log";([] functionName:``.dispatch.call; arguments:((::);enlist `yo));.qtb.getFuncallLog[]]}];
 
 .qtb.addTest[`priv`receiveMsg`fail;{[]
-  .qtb.override[`.msg.priv.LOGF;.qtb.callLogS`.msg.priv.LOGF];
-  .qtb.override[`.dispatch.call;.qtb.callLog[`.dispatch.call;{[msg] '"kaboom"}]];
+  .qtb.override[`.msg.priv.LOGF;.qtb.callLogNoret`.msg.priv.LOGF];
+  .qtb.override[`.dispatch.call;.qtb.callLogSimple[`.dispatch.call;{[msg] '"kaboom"}]];
   .msg.priv.receiveMsg[42;`yo];
   .qtb.matchValue["Call log";
                   ([] functionName:``.dispatch.call`.msg.priv.LOGF;
@@ -63,7 +63,7 @@
 // priv.enqueue
 
 .qtb.suite`priv`enqueue;
-.qtb.setOverrides[`priv`enqueue;`.msg.priv.LOGF`.msg.priv.PRIM_ADDRESS`.msg.priv.MESSAGES!(.qtb.callLogS`.msg.priv.LOGF;`me;([] srcAddr:enlist `; destAddr:enlist `; msg:enlist (::)))];
+.qtb.setOverrides[`priv`enqueue;`.msg.priv.LOGF`.msg.priv.PRIM_ADDRESS`.msg.priv.MESSAGES!(.qtb.callLogNoret`.msg.priv.LOGF;`me;([] srcAddr:enlist `; destAddr:enlist `; msg:enlist (::)))];
 
 .qtb.addTest[`priv`enqueue`ok;{[]
   .msg.priv.enqueue[`him;`me;"Yo!"];
@@ -81,7 +81,7 @@
 // priv.dropConnection
 
 .qtb.suite`priv`dropConnection;
-.qtb.setOverrides[`priv`dropConnection;`.msg.priv.LOGF`.msg.priv.connectionDropped`.msg.priv.MSGSERVER!(.qtb.callLogS`.msg.priv.LOGF;.qtb.callLogS`.msg.priv.connectionDropped;42)]
+.qtb.setOverrides[`priv`dropConnection;`.msg.priv.LOGF`.msg.priv.connectionDropped`.msg.priv.MSGSERVER!(.qtb.callLogNoret`.msg.priv.LOGF;.qtb.callLogNoret`.msg.priv.connectionDropped;42)]
 
 .qtb.addTest[`priv`dropConnection`ok;{[]
   .qtb.override[`.q.hclose;.qtb.callLogComplex[`.q.hclose;(::);1]];
@@ -93,7 +93,7 @@
 
 .qtb.addTest[`priv`dropConnection`error;{[]
   .qtb.override[`.q.hclose;.qtb.callLogComplex[`.q.hclose;{[conn] '"ace"};1]];
-  .qtb.override[`.msg.priv.ERREXITF;.qtb.callLog[`.msg.priv.ERREXITF;{[] '"jump"}]];
+  .qtb.override[`.msg.priv.ERREXITF;.qtb.callLogSimple[`.msg.priv.ERREXITF;{[] '"jump"}]];
   r:.qtb.checkX[.msg.priv.dropConnection;(::);"jump"];
   r and .qtb.matchValue["Call log";
                         ([] functionName:``.msg.priv.LOGF`.q.hclose`.msg.priv.LOGF`.msg.priv.ERREXITF;
@@ -103,7 +103,7 @@
 // priv.connectionDropped
 
 .qtb.suite`priv`connectionDropped;
-.qtb.setOverrides[`priv`connectionDropped;`.msg.priv.LOGF`.msg.priv.MSGSERVER`.msg.priv.RECONNECT`.msg.priv.connSetup!(.qtb.callLogS`.msg.priv.LOGF;.msg.priv.MSGSERVER;.msg.priv.RECONNECT;.qtb.callLogS`.msg.priv.connSetup)];
+.qtb.setOverrides[`priv`connectionDropped;`.msg.priv.LOGF`.msg.priv.MSGSERVER`.msg.priv.RECONNECT`.msg.priv.connSetup!(.qtb.callLogNoret`.msg.priv.LOGF;.msg.priv.MSGSERVER;.msg.priv.RECONNECT;.qtb.callLogNoret`.msg.priv.connSetup)];
 
 .qtb.addTest[`priv`connectionDropped`otherhandle;{[]
   .msg.priv.MSGSERVER::3;
@@ -135,7 +135,7 @@
 .testmsgcl.link1:{x;};
 .testmsgcl.link2:{x;};
 
-.qtb.setOverrides[`priv`chainCallback;`.testmsgcl.base`.testmsgcl.link1`.testmsgcl.link2!.qtb.callLogS'[`.testmsgcl.base`.testmsgcl.link1`.testmsgcl.link2]];
+.qtb.setOverrides[`priv`chainCallback;`.testmsgcl.base`.testmsgcl.link1`.testmsgcl.link2!.qtb.callLogNoret'[`.testmsgcl.base`.testmsgcl.link1`.testmsgcl.link2]];
 
 .qtb.addBeforeEach[`priv`chainCallback;{[] delete testcallback from `.;}];
 .qtb.addAfterAll[`priv`chainCallback;{[] delete testcallback from `.;}];
@@ -161,7 +161,7 @@
 // init
 
 .qtb.suite`init;
-.qtb.setOverrides[`init;`.msg.priv.SERVER_ADDRESS`.msg.priv.PRIM_ADDRESS`.msg.priv.RECONNECT`.msg.priv.CONNECT_TIMEOUT`.msg.priv.connSetup!(.msg.priv.SERVER_ADDRESS;.msg.priv.PRIM_ADDRESS;.msg.priv.RECONNECT;.msg.priv.CONNECT_TIMEOUT;.qtb.callLogS`.msg.priv.connSetup)];
+.qtb.setOverrides[`init;`.msg.priv.SERVER_ADDRESS`.msg.priv.PRIM_ADDRESS`.msg.priv.RECONNECT`.msg.priv.CONNECT_TIMEOUT`.msg.priv.connSetup!(.msg.priv.SERVER_ADDRESS;.msg.priv.PRIM_ADDRESS;.msg.priv.RECONNECT;.msg.priv.CONNECT_TIMEOUT;.qtb.callLogNoret`.msg.priv.connSetup)];
 
 .qtb.addTest[`init`missingparams;{[]
   .qtb.checkX[.msg.init;`a`b!1 2;"msgclient: missing parameters"] and
@@ -178,7 +178,7 @@
 
 .qtb.suite`sendMsg;
 
-.qtb.setOverrides[`sendMsg;`.msg.priv.CONN_STATE`.msg.priv.MSGSERVER`.msg.priv.PRIM_ADDRESS`.msg.priv.send!(.msg.priv.CONN_STATE;.msg.priv.MSGSERVER;.msg.priv.PRIM_ADDRESS;.qtb.callLogS`.msg.priv.send)];
+.qtb.setOverrides[`sendMsg;`.msg.priv.CONN_STATE`.msg.priv.MSGSERVER`.msg.priv.PRIM_ADDRESS`.msg.priv.send!(.msg.priv.CONN_STATE;.msg.priv.MSGSERVER;.msg.priv.PRIM_ADDRESS;.qtb.callLogNoret`.msg.priv.send)];
 
 .qtb.addTest[`sendMsg`ok;{[]
   .msg.priv.CONN_STATE::`connected;

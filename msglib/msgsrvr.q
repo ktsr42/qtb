@@ -47,7 +47,7 @@ sendMessage:{[handle;srcAddr;destAddr;msg]
     tgth:CONNS[destAddr;`clientHandle];
     $[null tgth; lg "Unknown address, cannot forward message";
                  [submitMessage[(`receive;srcAddr;destAddr;msg);destAddr;tgth];
-                  lg "Message forwarded"]]];
+                 lg "Message forwarded"]]];
   };
 
 // we only export these two functions to for remote calling
