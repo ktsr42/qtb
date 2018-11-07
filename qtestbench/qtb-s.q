@@ -367,7 +367,7 @@ callLog:{[fname;wrapf]
 callLogSimple:{[fname;retval]
   if[100h < type retval;'".qtb.callLogSimple: not value"];
   :callLogComplex[fname;retval;0N];
- };
+  };
 
 callLogNoret:callLogComplex[;(::);0N];
 
