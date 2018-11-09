@@ -214,12 +214,12 @@ priv.executeTest:{[tf;params]
   priv.revertOverrides priv.CURRENT_OVERRIDES;
   priv.CURRENT_OVERRIDES:0#priv.CURRENT_OVERRIDES;
   
-  res:$[not aeres;(`broke;"aftereach failure");
-        `exceptn ~ tres 0;(`error;"exception: ",tres 1);
+  res:$[not aeres;           (`broke;"aftereach failure");
+        `exceptn ~ tres 0;   (`error;"exception: ",tres 1);
         (`success;0b) ~ tres;(`failed;"");
         (`success;1b) ~ tres;(`succeeded;"");
-        `success ~ tres 0;(`broke;"unexpected return value");
-                          '"qtb: unexpected test result"];
+        `success ~ tres 0;   (`broke;"unexpected return value");
+                             '"qtb: unexpected test result"];
 
   priv.reportTestResult . (params`verbose`tns),res;
   :(testname;res 0);
