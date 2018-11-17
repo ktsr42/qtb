@@ -86,15 +86,15 @@ priv.matchPaths:{[pa;pb]
 
 priv.print:1;
 priv.println:-1;
+priv.show:show;
 
-priv.testResTree2Tbl:{[cp;r]
-  ncp:cp,$[all (0 = count cp;null first r);();first r];
-  :$[0 = type r;raze .z.s[ncp]'[1 _ r];
-     11h = type r;enlist `path`result!(ncp;r 1);
-                 '"error"];
+priv.testResTree2Tbl:{[cp;tr]
+  if[`suitename in key tr;:raze .z.s[cp,tr`suitename]'[tr`tests]];
+  if[`testname in key tr;:enlist @[tr;`testname;{y,x};cp]];
+  '"qtb: unknown test result value: ",-3!tr;
   };
 
-priv.testResTree2JunitXml:{[idl;r]
+priv.testResTree2JunitXml_old:{[idl;r]
   t:type r;  ids:idl#" ";  res:(); 
   if[0h = t;
     testcount:count tests:r where 11h = type each r;
@@ -114,6 +114,31 @@ priv.testResTree2JunitXml:{[idl;r]
   :res;
   };
 
+priv.testResTree2JunitXml:{[idl;cp;r]
+  if[`testname in key r;
+    bd:(idl#" "),"<testcase name=\"",string[r`testname],"\" classname=\"\" time=\"",string[r`time],"\"";
+    if[`succeeded ~ r`result;:enlist bd," />"];
+    if[`failed ~ r`result;:(bd,">";((2 + idl)#" "),"<failure />";(idl#" "),"</testcase>")];
+    :(bd,">";((2 + idl)#" "),"<error />";(idl#" "),"</testcase>");
+  ];
+  if[not `suitename in key r;'"qtb: invalid result value"];
+  tests:where `testname in/: key each r`tests;
+  o:();
+  if[0 < count tests;
+    alltests:r[`tests;tests];
+    h:(idl#" "),"<testsuite name=\"",("." sv string cp,r`suitename),"\" ";
+    h,:"errors=\"",string[count select from alltests where not result in `succeeded`failed],"\" ";
+    h,:"failures=\"",string[count select from alltests where result=`failed],"\" ";
+    h,:"tests=\"",string[count alltests],"\" ";
+    h,:"timestamp=\"",(@[;10;:;"T"] @[;4 7;:;"-"] string 15h$r`start),"\" ";
+    h,:"time=\"",string[r`time],"\">";
+    b:raze .z.s[2 + idl;cp,r`suitename]'[alltests];
+    o:enlist[h],b,((2 + idl)#" "),/:("<properties />";"<system-out />";"<system-err />");
+    o,:enlist (idl#" "),"</testsuite>";
+  ];
+  :o,raze .z.s[idl;cp,r`suitename] each r[`tests] where not `testname in/: key each r`tests;
+  };
+
 priv.junitXmlDoc:{[res]
   junitxml:("<?xml version=\"1.0\" encoding=\"UTF-8\"?>";"<testsuites>");
   junitxml,:priv.testResTree2JunitXml[2;res];
@@ -122,8 +147,8 @@ priv.junitXmlDoc:{[res]
 
 priv.testsComplete:{[verbose;junitfile;res]
   if[not null junitfile; hsym[junitfile] 0: priv.junitXmlDoc res];
-  rt:priv.testResTree2Tbl[`$();res];
-  if[count fails:select from rt where result <> `succeeded; show fails];
+  rt:`path xcol priv.testResTree2Tbl[`$();res];
+  if[count fails:select from rt where result <> `succeeded; priv.show fails];
   :rt;
   };
 
@@ -146,6 +171,8 @@ priv.executeSpecial:{[func;suiteNameS;specialNameS]
   :1b;
   };
 
+priv.durationSeconds:{[s;e] (e - s) % 0D00:00:01};
+
 // params `nocatch`basepath`beforeach`aftereach`overrides`currPath`mode`verbose
 priv.executeSuite:{[params]
   pm:priv.matchPaths . params`basepath`currPath;
@@ -158,12 +185,14 @@ priv.executeSuite:{[params]
   if[`value ~ subtree 0;
     if[`skip ~ params`mode;
       priv.reportTestResult[params`verbose;suitepathS;`skipped];
-      :(suitename;`skipped)];
+      :`testname`result`time!(suitename;`skipped;0f)];
     if[`exec ~ params`mode;
       :$[pm ~ `subpath;priv.executeTest . (subtree 1;@[params;`tns;:;suitepathS]);()]];
     '"qtb: unknown mode ",string params`mode];
- 
+
   if[not `nodes ~ subtree 0;'"qtb: Unexpected result from .tree.getLeaves[]"];
+ 
+  suitestart:.z.p;
   // execute beforealls
   if[`exec ~ params`mode;
     if[not priv.executeSpecial[subtree[1;priv.BeforeAllTag];suitepathS;"BEFOREALL"];
@@ -182,9 +211,9 @@ priv.executeSuite:{[params]
   // execute afteralls
   if[`exec ~ params`mode;
     if[not priv.executeSpecial[subtree[1;priv.AfterAllTag];suitepathS;"AFTERALL"];
-      res:.[res;((::);1);:;`broke]]];
+      res:update result:`broke from res]];
  
-  :suitename,res;
+  :`suitename`start`time`tests!(suitename;suitestart;priv.durationSeconds[suitestart;.z.p];res);
   };
 
 // params: `nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath
@@ -192,16 +221,17 @@ priv.executeTest:{[tf;params]
   testname:last params`currPath;
   if[1 <> countargs tf;
     priv.reportTestResult . (params`verbose`tns),(`broke;"invalid test function");
-    :(testname;`broke)];
- 
-  // apply overrides
-  priv.CURRENT_OVERRIDES:priv.applyOverrides params`overrides;
- 
+    :`testname`result`time!(testname;`broke;0f)];
+
+  teststart:.z.p;
   // execute beforeEaches
   if[not all 1b,priv.executeSpecial[;params`tns;"BEFOREEACH"] each params`beforeeach;
     priv.reportTestResult . (params`verbose`tns),(`broke;"beforeeach failure");
-    :(testname;`broke)];
+    :`testname`result`time!(testname;`broke;priv.durationSeconds[teststart;.z.p])];
 
+  // apply overrides
+  priv.CURRENT_OVERRIDES:priv.applyOverrides params`overrides;
+ 
   resetFuncallLog[];
  
   // execute test
@@ -222,7 +252,7 @@ priv.executeTest:{[tf;params]
                              '"qtb: unexpected test result"];
 
   priv.reportTestResult . (params`verbose`tns),res;
-  :(testname;res 0);
+  :`testname`result`time!(testname;res 0;priv.durationSeconds[teststart;.z.p]);
   };
 
 priv.execute:{[catchX;basepath] 

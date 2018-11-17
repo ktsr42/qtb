@@ -7,14 +7,19 @@
 
 privExecuteN_all:{[]
   executeSuite_orig:.qtb.priv.executeSuite;
-  `.qtb.priv.executeSuite set {[r;y] r}[`p,`a`b`c,\:`succeeded];
+  println_orig:.qtb.priv.println;
+  `.qtb.priv.println set {};
+  xsres:`suitename`start`time`tests!(`p;0Np;1f;([] testname:`a`b`c; result:3#`succeeded; time:1 2 3f));
+  `.qtb.priv.executeSuite set {[r;y] r}[xsres];
   r:.qtb.priv.execute[1b;`];
-  exp_res:([] path:(`p`a;`p`b;`p`c); result:3#`succeeded);
+  exp_res:([] path:(`p`a;`p`b;`p`c); result:3#`succeeded; time:1 2 3f);
   `.qtb.priv.executeSuite set executeSuite_orig;
+  `.qtb.priv.println set println_orig;
   :exp_res ~ r;
   };
 
 
+// FIXME: overrides
 initTestSuite:{[]
   .qtb.priv.ALLTESTS:.tree.new[];
   execute_root_beforeAll_flag::0b;
@@ -34,23 +39,26 @@ initTestSuite:{[]
   .qtb.addAfterEach[`realtests;{[] execute_realtest_afterEach_counter+::1;}];
   .qtb.addTest[`realtests`a;{[] 0b}];
   .qtb.addTest[`realtests`b;{[] 1b}];
-  `execute_exp_res set ([] path:(`realtests`a;`realtests`b); result:`failed`succeeded);
+  `execute_exp_res set ([] path:(``realtests`a;``realtests`b); result:`failed`succeeded);
   `print_orig set .qtb.priv.print;
   `.qtb.priv.print set {};
   `println_orig set .qtb.priv.println;
   `.qtb.priv.println set {};
+  `show_orig set .qtb.priv.show;
+  `.qtb.priv.show set {};
   };
 
 restoreTestSuite:{[]
   `.qtb.priv.print set print_orig;
   `.qtb.priv.println set println_orig;
+  `.qtb.priv.show set show_orig;
   };
  
 execute_base:{[]
   initTestSuite[];
   tr:.qtb.execute `realtests;
   restoreTestSuite[];
-  all .qtb.matchValue ./: (("Return value";execute_exp_res;tr);
+  all .qtb.matchValue ./: (("Return value";execute_exp_res;select path, result from tr);
                       ("root_beforeAll_flag";1b;execute_root_beforeAll_flag);
                       ("root_afterAll_flag";1b;execute_root_afterAll_flag);
                       ("root_test_flag";0b;execute_root_test_flag);
@@ -65,7 +73,7 @@ execute_failBeforeAll:{[]
   .qtb.addBeforeAll[`realtests;{[] execute_realtest_beforeAll_flag::1b;'"fire in the hole!"}];
   tr:.qtb.execute`realtests;
   restoreTestSuite[];
-  r:all .qtb.matchValue ./: (("Return value";([] path:(`realtests`a;`realtests`b); result:`skipped`skipped);tr);
+  r:all .qtb.matchValue ./: (("Return value";([] path:(``realtests`a;``realtests`b); result:`skipped`skipped; time:0 0f);tr);
                         ("root_beforeAll_flag";1b;execute_root_beforeAll_flag);
                         ("root_afterAll_flag";1b;execute_root_afterAll_flag);
                         ("root_test_flag";0b;execute_root_test_flag);
@@ -79,8 +87,8 @@ execute_alltests:{[]
   initTestSuite[];
   tr:.qtb.execute[];
   restoreTestSuite[];
-  expres:([] path:((),`noexec;`realtests`a;`realtests`b); result:`failed`failed`succeeded);
-  r:all .qtb.matchValue ./: (("Return value";expres;tr);
+  expres:([] path:(``noexec;``realtests`a;``realtests`b); result:`failed`failed`succeeded);
+  r:all .qtb.matchValue ./: (("Return value";expres;delete time from tr);
                         ("root_beforeAll_flag";1b;execute_root_beforeAll_flag);
                         ("root_afterAll_flag";1b;execute_root_afterAll_flag);
                         ("root_test_flag";1b;execute_root_test_flag);
@@ -98,7 +106,7 @@ execute_single:{[]
   .qtb.addTest[`realtests`b;{[] execute_realtest_b::0b; 1b}];
   tr:.qtb.execute `realtests`a;
   restoreTestSuite[];
-  r:all .qtb.matchValue ./: (("Return value";([] path:enlist `realtests`a; result:enlist `succeeded);tr);
+  r:all .qtb.matchValue ./: (("Return value";([] path:enlist ``realtests`a; result:enlist `succeeded);delete time from tr);
                         ("root_beforeAll_flag";1b;execute_root_beforeAll_flag);
                         ("root_afterAll_flag";1b;execute_root_afterAll_flag);
                         ("root_test_flag";0b;execute_root_test_flag);
@@ -257,10 +265,12 @@ setup:{[]
   
   `.executeSuite.executeTest_orig set .qtb.priv.executeTest;
   `.executeSuite.executeTest_log set ();
-  `.qtb.priv.executeTest set {[tf;params] executeTest_log,::enlist (tf;params); (last params`currPath;`succeeded)};
+  `.qtb.priv.executeTest set {[tf;params] executeTest_log,::enlist (tf;params); `testname`result`time!(last params`currPath;`succeeded;1.2f)};
   `.executeSuite.dfltargs set `nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(0b;`$();();();(`$())!();`pa`th;`exec;1b);
   `.executeSuite.println_orig set .qtb.priv.println;
   `.qtb.priv.println set {};
+  `.executeSuite.durationSeconds_orig set .qtb.priv.durationSeconds;
+  `.qtb.priv.durationSeconds set {(x;y); 1.1f};
   };
 
 restore:{[]
@@ -269,6 +279,7 @@ restore:{[]
   `.qtb.priv.executeSpecial set executeSpecial_orig;
   `.qtb.priv.executeTest set executeTest_orig;
   `.qtb.priv.println set println_orig;
+  `.qtb.priv.durationSeconds set .executeSuite.durationSeconds_orig;
   };
 
 beforeall:{[] `beforeeall};
@@ -289,6 +300,14 @@ override_getLeaves:{[]
   getLeaves_data:([] path:(`pa;`pa`th;`pa`xx;`pa`th`testa;`pa`th`testb;`pa`xx`testa;`pa`xx`testb);
                      res:((`nodes;ll0);(`nodes;ll1);(`nodes;ll1);(`value;.executeSuite.testa);(`value;.executeSuite.testb);(`value;.executeSuite.testa);(`value;.executeSuite.testb)));
   .tree.getLeaves:{[tbl;tree;tp] first exec res from tbl where path ~\: tp}[getLeaves_data];
+ };
+
+getLeaves2:{[tree;tp]
+  if[tp ~`pa`th;:(`nodes;`testa`testb`suite!(.executeSuite.testa;.executeSuite.testb;`testa`tesb!.executeSuite`testa`testb))];
+  if[last[tp] ~ `testa;:(`value;.executeSuite.testa)];
+  if[last[tp] ~ `testb;:(`value;.executeSuite.testb)];
+  if[tp ~ `pa`th`suite;:(`nodes;`testa`testb!.executeSuite`testa`testb)];
+  '"Unexpected tp argument: ",-3!tp;
   };
 
 exp_speciallog:((beforeall;".pa";"BEFOREALL");
@@ -309,7 +328,8 @@ executeSuite_base:{[]
   r:.qtb.priv.executeSuite .executeSuite.dfltargs;
   .executeSuite.restore[];
 
-  :all (`th`succeeded ~ r;.executeSuite.executeSpecial_log ~ ();
+  :all (r ~ `testname`result`time!(`th;`succeeded;1.2f);
+        .executeSuite.executeSpecial_log ~ ();
         .executeSuite.executeTest_log ~ enlist (.executeSuite.testa;@[.executeSuite.dfltargs;`tns;:;".pa.th"]));
   };
 
@@ -317,7 +337,6 @@ executeSuite_base:{[]
 executeSuite_recurseOnce:{[]
   .executeSuite.setup[];
   r:.qtb.priv.executeSuite .executeSuite.dfltargs;
- 
   .executeSuite.restore[];
  
   xab:@[.executeSuite.dfltargs;`overrides`tns;:;(.executeSuite.overrides;".pa.th")];
@@ -325,7 +344,8 @@ executeSuite_recurseOnce:{[]
   xab:@[xab;`beforeeach`aftereach;enlist];
   exectestlog:{(x;y)}'[.executeSuite[`testa`testb];.executeSuite.mkExecTestArgs[xab] each `testa`testb];
  
-  :all ((`th;`testa`succeeded;`testb`succeeded) ~ r;
+  :all ((`th;([] testname:`testa`testb; result:`succeeded`succeeded; time:1.2 1.2f)) ~ r`suitename`tests;
+        -12 -9h ~ type each r`start`time;
         .executeSuite.executeSpecial_log ~
         ((.executeSuite.beforeall;".pa.th";"BEFOREALL");(.executeSuite.afterall;".pa.th";"AFTERALL"));
         .executeSuite.executeTest_log ~ exectestlog);
@@ -341,10 +361,27 @@ executeSuite_recurseTwice:{[]
   exectestlog:{(x;y)}'[.executeSuite[`testa`testb];.executeSuite.mkExecTestArgs[xab] each `testa`testb];
   exectestlog,:{(x;y)}'[.executeSuite[`testa`testb];.executeSuite.mkExecTestArgs[@[xab;`tns`currPath;:;(".pa.xx";`pa`xx)]] each `testa`testb];
 
-  trs:(`testa`succeeded;`testb`succeeded);
-  :all ((`pa;`th,trs;`xx,trs) ~ r;
+  tres:([] testname:`testa`testb; result:`succeeded`succeeded; time:1.2 1.2f);
+  ssuiteres:(`th`xx; 1.1 1.1; 2#enlist tres);
+  :all ((`pa;1.1) ~ r`suitename`time;
+         -12h = type r`start;
+         ssuiteres ~ r[`tests;`suitename`time`tests];
         .executeSuite.executeSpecial_log ~ .executeSuite.exp_speciallog;
         .executeSuite.executeTest_log ~ exectestlog);
+  };
+
+executeSuite_recurseMixed:{[]
+  .executeSuite.setup[];
+  `.tree.getLeaves set .executeSuite.getLeaves2;
+  r:.qtb.priv.executeSuite .executeSuite.dfltargs;
+  .executeSuite.restore[];
+  tres:([] testname:`testa`testb; result:`succeeded`succeeded; time:1.2 1.2f);
+  :all R::((`th;1.1) ~ r`suitename`time;
+        -12h = type r`start;
+        r[`tests;0 1] ~ tres;
+        (`suite;1.1) ~ r[`tests;2;`suitename`time];
+        -12h = type r[`tests;2;`start];
+        r[`tests;2;`tests] ~ tres);
   };
 
 executeSuite_skip:{[]
@@ -353,8 +390,11 @@ executeSuite_skip:{[]
  
   .executeSuite.restore[];
 
-  trs:(`testa`skipped;`testb`skipped);
-  :all ((`pa;`th,trs;`xx,trs) ~ r;
+  tres:([] testname:`testa`testb; result:`skipped`skipped; time:0 0f);
+  ssuiteres:(`th`xx; 1.1 1.1; 2#enlist tres);
+  :all ((`pa;1.1) ~ r`suitename`time;
+        -12h = type r`start;
+        ssuiteres ~ r[`tests;`suitename`time`tests];
        .executeSuite.executeSpecial_log ~ ();
        .executeSuite.executeTest_log ~ ());
   };
@@ -371,9 +411,14 @@ executeSuite_beforeAllFail:{[]
   xab:@[xab;`beforeeach`aftereach;:;(.executeSuite each) each (`beforeeach_l`beforeeach;`aftereach_l`aftereach)];
   exectestlog:{(x;y)}'[.executeSuite[`testa`testb];.executeSuite.mkExecTestArgs[@[xab;`tns`currPath;:;(".pa.xx";`pa`xx)]] each `testa`testb];
  
-  :all ((`pa;(`th;`testa`skipped;`testb`skipped);(`xx;`testa`succeeded;`testb`succeeded)) ~ r;
-         .executeSuite.executeSpecial_log ~ exp_speciallog;
-         .executeSuite.executeTest_log ~ exectestlog);
+  tres_th:([] testname:`testa`testb; result:`skipped`skipped; time:0 0f);
+  tres_xx:([] testname:`testa`testb; result:`succeeded`succeeded; time:1.2 1.2f);
+  ssuiteres:(`th`xx; 1.1 1.1; (tres_th;tres_xx));
+  :all ((`pa;1.1) ~ r`suitename`time;
+        -12h = type r`start;
+        ssuiteres ~ r[`tests;`suitename`time`tests];
+        .executeSuite.executeSpecial_log ~ exp_speciallog;
+        .executeSuite.executeTest_log ~ exectestlog);
   };
 
 executeSuite_afterAllFail:{[]
@@ -388,9 +433,14 @@ executeSuite_afterAllFail:{[]
   exectestlog:{(x;y)}'[.executeSuite[`testa`testb];.executeSuite.mkExecTestArgs[@[xab;`tns;:;".pa.th"]] each `testa`testb];
   exectestlog,:{(x;y)}'[.executeSuite[`testa`testb];.executeSuite.mkExecTestArgs[@[xab;`tns`currPath;:;(".pa.xx";`pa`xx)]] each `testa`testb];
 
- :all ((`pa;(`th;`testa`broke;`testb`broke);(`xx;`testa`succeeded;`testb`succeeded)) ~ r;
-       .executeSuite.executeSpecial_log ~ .executeSuite.exp_speciallog;
-       .executeSuite.executeTest_log ~ exectestlog);
+  tres_th:([] testname:`testa`testb; result:`broke`broke; time:1.2 1.2f);
+  tres_xx:([] testname:`testa`testb; result:`succeeded`succeeded; time:1.2 1.2f);
+  ssuiteres:(`th`xx; 1.1 1.1; (tres_th;tres_xx));
+  :all ((`pa;1.1) ~ r`suitename`time;
+        -12h = type r`start;
+        ssuiteres ~ r[`tests;`suitename`time`tests];
+        .executeSuite.executeSpecial_log ~ .executeSuite.exp_speciallog;
+        .executeSuite.executeTest_log ~ exectestlog);
  };
 
 
@@ -405,7 +455,11 @@ executeSuite_basepathSuite:{[]
   xab:@[xab;`beforeeach`aftereach;:;(.executeSuite each) each (`beforeeach_l`beforeeach;`aftereach_l`aftereach)];
   exectestlog:{(x;y)}'[.executeSuite[`testa`testb];.executeSuite.mkExecTestArgs[@[xab;`tns`currPath;:;(".pa.th";`pa`th)]] each `testa`testb];
 
-  :all ((`pa;(`th;`testa`succeeded;`testb`succeeded)) ~ r;
+  tres:([] testname:`testa`testb; result:`succeeded`succeeded; time:1.2 1.2f);
+  ssuiteres:(enlist `th; enlist 1.1;enlist tres);
+  :all ((`pa;1.1) ~ r`suitename`time;
+        -12h = type r`start;
+        ssuiteres ~ r[`tests;`suitename`time`tests];
         .executeSuite.executeSpecial_log ~ exp_speciallog;
         .executeSuite.executeTest_log ~ exectestlog);
   };
@@ -421,7 +475,12 @@ executeSuite_basepathTest:{[]
   xab:@[xab;`beforeeach`aftereach;:;(.executeSuite each) each (`beforeeach_l`beforeeach;`aftereach_l`aftereach)];
   exectestlog:enlist (.executeSuite[`testb];.executeSuite.mkExecTestArgs[@[xab;`tns`currPath;:;(".pa.th";`pa`th)]] each `testb);
 
-  :all ((`pa;(`th;`testb`succeeded)) ~ r;.executeSuite.executeSpecial_log ~ exp_speciallog;.executeSuite.executeTest_log ~ exectestlog);
+  tres:enlist `testname`result`time!(`testb;`succeeded;1.2f);
+  ssuiteres:(enlist `th;enlist 1.1;enlist tres);
+  :all ((`pa;1.1) ~ r`suitename`time;
+        -12h = type r`start;
+        ssuiteres ~ r[`tests;`suitename`time`tests];
+        .executeSuite.executeSpecial_log ~ exp_speciallog;.executeSuite.executeTest_log ~ exectestlog);
   };
 
 executeSuite_invalidpath:{[]
@@ -434,9 +493,9 @@ executeSuite_invalidpath:{[]
   :("qtb: invalid path" ~ r) and (.executeSuite.executeTest_log ~ ()) and (.executeSuite.executeSpecial_log ~ ());
   };
 
-executeSuite_SUITE:`executeSuite_base`executeSuite_recurseOnce`executeSuite_recurseTwice`executeSuite_beforeAllFail,
-                   `executeSuite_afterAllFail`executeSuite_basepathSuite`executeSuite_basepathTest`executeSuite_invalidpath,
-                   `executeSuite_skip;
+executeSuite_SUITE:`executeSuite_base`executeSuite_recurseOnce`executeSuite_recurseTwice`executeSuite_recurseMixed,
+                   `executeSuite_beforeAllFail`executeSuite_afterAllFail`executeSuite_basepathSuite`executeSuite_basepathTest,
+                   `executeSuite_invalidpath`executeSuite_skip;
 
 executeTestN_stdOverrides:{[]
   .orig.catchX:.qtb.catchX;
@@ -456,6 +515,8 @@ executeTestN_stdOverrides:{[]
   .orig.reportTestResult:.qtb.priv.reportTestResult;
   .test.reportTestResult_calls::();
   .qtb.priv.reportTestResult:{[a;b;c;d] .test.reportTestResult_calls,::enlist (a;b;c;d); };
+  .orig.durationSeconds:.qtb.priv.durationSeconds;
+  .qtb.priv.durationSeconds:{[x;y] 42f};
   };
 
 executeTestN_resetStdOverrides:{[]
@@ -464,13 +525,14 @@ executeTestN_resetStdOverrides:{[]
   .qtb.priv.applyOverrides:.orig.applyOverrides;
   .qtb.priv.revertOverrides:.orig.revertOverrides;
   .qtb.priv.reportTestResult:.orig.reportTestResult;
+  .qtn.priv.durationSeconds:.orig.durationSeconds;
   };
 
 executeTestN_success:{[]
   executeTestN_stdOverrides[];
   r:.qtb.priv.executeTest[{1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;`he`re)];
   executeTestN_resetStdOverrides[];
-  all (r ~ `re`succeeded;
+  all (r ~ `testname`result`time!(`re;`succeeded;42f);
        1 = .test.resetFuncallLog_calls;
        .test.applyOverrides_calls ~ enlist (`$())!();
        .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
@@ -481,7 +543,7 @@ executeTestN_fail:{[]
   .qtb.catchX::{[f;a] (`success;0b)};
   r:.qtb.priv.executeTest[{};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;`the`re)];
   executeTestN_resetStdOverrides[];
-  all (r ~ `re`failed;
+  all (r ~ `testname`result`time!(`re;`failed;42f);
        1 = .test.resetFuncallLog_calls;
        .test.applyOverrides_calls ~ enlist (`$())!();
        .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
@@ -492,7 +554,7 @@ executeTestN_exception:{[]
   .qtb.catchX::{[f;a] (`exceptn;"poof")};
   r:.qtb.priv.executeTest[{};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;`x`y`z)];
   executeTestN_resetStdOverrides[];
-  all (r ~ `z`error;
+  all (r ~ `testname`result`time!(`z;`error;42f);
        1 = .test.resetFuncallLog_calls;
        .test.applyOverrides_calls ~ enlist (`$())!();
        .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
@@ -503,7 +565,7 @@ executeTestN_other:{[]
   .qtb.catchX::{[f;a] (`success;42)};
   r:.qtb.priv.executeTest[{42};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;(),`xxx)];  
   executeTestN_resetStdOverrides[];
-  all (r ~ `xxx`broke;
+  all (r ~ `testname`result`time!(`xxx;`broke;42f);
        1 = .test.resetFuncallLog_calls;
        .test.applyOverrides_calls ~ enlist (`$())!();
        .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
@@ -513,7 +575,7 @@ executeTestN_nocatch_success:{[]
   executeTestN_stdOverrides[];
   r:.qtb.priv.executeTest[{1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(1b;();();"executeTestN";(`$())!();0b;`$())];
   executeTestN_resetStdOverrides[];
-  r ~ ``succeeded };
+  r ~ `testname`result`time!(`;`succeeded;42f) };
 
 executeTestN_nocatch_exception:{[]
   executeTestN_stdOverrides[];
@@ -527,13 +589,13 @@ executeTestN_notafunc:{[]
   executeTestN_stdOverrides[];
   r:.qtb.priv.executeTest[42;`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;`a`b)];
   executeTestN_resetStdOverrides[]; 
-  r ~ `b`broke};
+  r ~ `testname`result`time!(`b;`broke;0f)};
 
 executeTestN_toomanyargs:{[]
   executeTestN_stdOverrides[];
   r:.qtb.priv.executeTest[{x+y};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;`x`y`z)];
   executeTestN_resetStdOverrides[]; 
-  r ~ `z`broke};
+  r ~ `testname`result`time!(`z;`broke;0f)};
 
 .executeTestN.executeSpecial_log:();
 
@@ -550,7 +612,7 @@ executeTestN_beforeandafter:{[]
   executeTestN_resetStdOverrides[];
   testname:"executeTestN.beforeandafter";
   .qtb.priv.executeSpecial:executeSpecial_orig;
-  all (r ~ `re`failed;
+  all (r ~ `testname`result`time!(`re;`failed;42f);
        .executeTestN.executeSpecial_log ~
        ((;testname;"BEFOREEACH") each beforeeaches),(;testname;"AFTEREACH") each aftereaches) };
 
@@ -563,11 +625,11 @@ executeTestN_notest_beforeeacherr:{[]
   beforeeaches:({[] `beforeeach_1};{[] '"dingdong"};{[] `beforeeach_3});
   aftereaches:({[] `aftereach_1};{[] `aftereach_2});
  
- r:.qtb.priv.executeTest[{[] 1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(1b;beforeeaches;aftereaches;"executeTestN.notest_beforeerr";(`$())!();0b;`th`ere)];
+  r:.qtb.priv.executeTest[{[] 1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(1b;beforeeaches;aftereaches;"executeTestN.notest_beforeerr";(`$())!();0b;`th`ere)];
   .qtb.priv.executeSpecial::executeSpecial_orig;
   executeTestN_resetStdOverrides[];
  
-  :all (r ~ `ere`broke;
+  :all (r ~ `testname`result`time!(`ere;`broke;42f);
        .executeTestN.executeSpecial_log ~ (;"executeTestN.notest_beforeerr";"BEFOREEACH") each beforeeaches;
        .test.reportTestResult_calls ~ enlist (0b;"executeTestN.notest_beforeerr";`broke;"beforeeach failure"));
   };
@@ -584,7 +646,7 @@ executeTestN_restoreOverrides_afterEachError:{[]
   r:.qtb.priv.executeTest[{[] 1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(1b;beforeeaches;aftereaches;"executeTestN.aftereach_error";(`$())!();0b;`a`b)];
   executeTestN_resetStdOverrides[];
   .qtb.priv.executeSpecial::executeSpecial_orig;
-  :all (r ~ `b`broke;
+  :all (r ~ `testname`result`time!(`b;`broke;42f);
         .executeTestN.executeSpecial_log ~ ((;"executeTestN.aftereach_error";"BEFOREEACH") each beforeeaches),
                                             (;"executeTestN.aftereach_error";"AFTEREACH") each  aftereaches;
         .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
@@ -635,7 +697,7 @@ applyOverride_all:{[]
 revertOverride_all:{[]
   OVERRIDETARGET1::42;
   OVERRIDETARGET2::`xxx;
-  .z.exit:{[] 0N!`exit;};
+  .z.exit:{[] `exit;};
   .test.OTGT1:`a`b`c;
   .test.sctx.OTGT2:{};
   .qtb.priv.revertOverride[`OVERRIDETARGET1;0;0b];
@@ -699,37 +761,29 @@ parseCmdline_all:{[]
   };
 
 testResTree2Tbl_all:{[]
-  o:.qtb.priv.testResTree2Tbl[`$()] (`suite;`test1`RES;`test2`RES;(`suite;`test3`RES;`test4`RES));
-  :o ~ ([] path:(`suite`test1;`suite`test2;`suite`suite`test3;`suite`suite`test4); result:4#`RES);
+  tres:([] testname:`testa`testb; result:`succeeded`failed; time:1.2 0.01f),(::);
+  subsuite1:enlist `suitename`start`time`tests!(`te;2018.11.11D11:11:11.0;1.1;-1 _ tres);
+  subsuite2:enlist `suitename`start`time`tests!(`st;2018.02.02D02:02:02.0;2.2;-1 _ tres);
+  basesuite:`suitename`start`time`tests!(`root;2018.03.03D03:03:03.0;0.3;(subsuite1,tres,subsuite2) 0 1 2 4);
+  r:.qtb.priv.testResTree2Tbl[(),`x;basesuite];
+  :r ~ ([] testname:(`x`root`te`testa;`x`root`te`testb;`x`root`testa;`x`root`testb;`x`root`st`testa;`x`root`st`testb);
+           result:`succeeded`failed`succeeded`failed`succeeded`failed;
+           time:1.2 0.01 1.2 0.01 1.2 0.01);
   };
 
 testResTree2JunitXml_all:{[]
-  in1:(`asuite;`test1`succeeded;`test2`succeeded);
-  o1:("<testsuite name=\"asuite\" errors=\"0\" tests=\"2\" failures=\"0\">";
-      "  <testcase name=\"test1\" />";
-      "  <testcase name=\"test2\" />";
-      "</testsuite>");
-  in2:(`asuite;`test1`succeeded;`test2`failed;`test3`broke);
-  o2:("<testsuite name=\"asuite\" errors=\"1\" tests=\"3\" failures=\"1\">";
-      "  <testcase name=\"test1\" />";
-      "  <testcase name=\"test2\">";
-      "    <failure message=\"test failure\">failed</failure>";
-      "  </testcase>";
-      "  <testcase name=\"test3\">";
-      "    <failure message=\"test failure\">broke</failure>";
-      "  </testcase>";
-      "</testsuite>");
-  in3:`mytest`myresult;
-  o3:("<testcase name=\"mytest\">";"  <failure message=\"test failure\">myresult</failure>";"</testcase>");
-  in4:(`tops;`ttest`succeeded;(`subs;`sstest1`succeeded;`sstest2`succeeded));
-  o4:("<testsuite name=\"tops\" errors=\"0\" tests=\"1\" failures=\"0\">";
-      "  <testcase name=\"ttest\" />";
-      "  <testsuite name=\"subs\" errors=\"0\" tests=\"2\" failures=\"0\">";
-      "    <testcase name=\"sstest1\" />";
-      "    <testcase name=\"sstest2\" />";
-      "  </testsuite>";
-      "</testsuite>");
-  :all (~) .' flip ((o1;o2;o3;o4);.qtb.priv.testResTree2JunitXml[0]'[(in1;in2;in3;in4)]);
+  tres:([] testname:`testa`testb`testc; result:`succeeded`failed`error; time:1.2 0.01 0f),(::);
+  subsuite1:enlist `suitename`start`time`tests!(`te;2018.11.11D11:11:11.0;1.1;-1 _ tres);
+  subsuite2:enlist `suitename`start`time`tests!(`st;2018.02.02D02:02:02.0;2.2;-1 _ tres);
+  basesuite:`suitename`start`time`tests!(`root;2018.03.03D03:03:03.0;0.3;(subsuite1,tres,subsuite2) 0 1 2 3 5);
+  tresdoc:("  <testcase name=\"testa\" classname=\"\" time=\"1.2\" />";
+           "  <testcase name=\"testb\" classname=\"\" time=\"0.01\">";"    <failure />";"  </testcase>";
+           "  <testcase name=\"testc\" classname=\"\" time=\"0\">";   "    <error />";"  </testcase>");
+  rootsuite:"<testsuite name=\"root\" errors=\"1\" failures=\"1\" tests=\"3\" timestamp=\"2018-03-03T03:03:03.000\" time=\"0.3\">";
+  te_suite:"<testsuite name=\"root.te\" errors=\"1\" failures=\"1\" tests=\"3\" timestamp=\"2018-11-11T11:11:11.000\" time=\"1.1\">";
+  st_suite:"<testsuite name=\"root.st\" errors=\"1\" failures=\"1\" tests=\"3\" timestamp=\"2018-02-02T02:02:02.000\" time=\"2.2\">";
+  expdoc:raze {[td;ste] enlist[ste],td,("  <properties />";"  <system-out />";"  <system-err />";"</testsuite>")}[tresdoc] each (rootsuite;te_suite;st_suite);
+  :expdoc ~ .qtb.priv.testResTree2JunitXml[0;`$();basesuite];
   };
 
 ALLTESTS:`privExecuteN_all,execute_SUITE,catchX_SUITE,checkX_SUITE,countargs_SUITE,isEmptyFunc_SUITE,
