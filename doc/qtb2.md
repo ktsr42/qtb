@@ -88,20 +88,20 @@ We will here walk through one particular suite for the function `processRegistra
 
     processRegistration:{[handle;primAddr]
       if[null primAddr;
-	lg "regQuest for null (invalid) handle";
-	:0b];
+        lg "regQuest for null (invalid) handle";
+        :0b];
 
       registeredHandle:CONNS[primAddr;`clientHandle];
       primAddrS:string primAddr;
       if[null registeredHandle;
-	lg "Registering client with primary address ",primAddrS;
-	`CONNS upsert (primAddr; handle);
-	:1b];
+        lg "Registering client with primary address ",primAddrS;
+        `CONNS upsert (primAddr; handle);
+        :1b];
 
       if[isValidConnHandle registeredHandle;
-	:$[handle = registeredHandle;
-	   [lg "Re-registration from client ",primAddrS;             1b];
-	   [lg "Failed registration for primary address ",primAddrS; 0b]]];
+        :$[handle = registeredHandle;
+           [lg "Re-registration from client ",primAddrS;             1b];
+           [lg "Failed registration for primary address ",primAddrS; 0b]]];
 
       lg "Warning: Found invalid handle for primary address ",primAddrS,", replacing registration";
       connectionDropped registeredHandle;
@@ -124,7 +124,7 @@ Now we can add our first test:
     .qtb.addTest[`processRegistration`successful_add;{[]
       r:processRegistration[22;`me];
       checks:(("CONNS table";([primaryAddress:el `me] clientHandle:el 22i);CONNS);
-	      ("logging calls";([] functionName:``lg; arguments:((::);"Registering client with primary address me"));.qtb.getFuncallLog[]));
+              ("logging calls";([] functionName:``lg; arguments:((::);"Registering client with primary address me"));.qtb.getFuncallLog[]));
       all r,.qtb.matchValue ./: checks }];
 
 This declares the test `successful_add` in the `processRegistration` test suite.  When run, this test will call `processRegistration with the handle number 22 and `` `me`` as arguments. The  `CONNS`  table will be empty and `isValidConnHandle` will return true.
@@ -139,7 +139,7 @@ The next test in the suite `duplicate` checks the behavior in case of a duplicat
       .qtb.override[`CONNS;([primaryAddress:el `me] clientHandle:el 22)];
       r:processRegistration[22;`me];
       checks:(("CONNS table";([primaryAddress:el `me] clientHandle:el 22);CONNS);
-	      ("logging calls";([] functionName:``lg; arguments:((::);"Re-registration from client me"));.qtb.getFuncallLog[]));
+              ("logging calls";([] functionName:``lg; arguments:((::);"Re-registration from client me"));.qtb.getFuncallLog[]));
       all r,.qtb.matchValue ./: checks}];
 
 This is only a slight variation from the initial test, all we have to change is the contents of the `CONNS` table to create the conflicting primary address and adjust out expected side-effects. We use the `.qtb.override` helper function to get the CONNS table to the right initial state.
@@ -152,10 +152,10 @@ The next test checks that a registration for a pre-existing primary address wher
       .qtb.override[`isValidConnHandle;{[ignore] 0b}];
       r:processRegistration[23;`me];
       checks:(("CONNS table";([primaryAddress:el `me] clientHandle:el 23);CONNS);
-	      ("Function calls";
-	      ([] functionName:``lg`connectionDropped;
-		  arguments:((::);"Warning: Found invalid handle for primary address me, replacing registration";enlist 22));
-	      .qtb.getFuncallLog[]));
+              ("Function calls";
+              ([] functionName:``lg`connectionDropped;
+                  arguments:((::);"Warning: Found invalid handle for primary address me, replacing registration";enlist 22));
+              .qtb.getFuncallLog[]));
       all r,.qtb.matchValue ./: checks }];
 
 Another test confirms that the registration fails if an existing one under the respective name is detected. For this thet we have to provide a matching entry in the `CONNS` table, which we do via `.qtb.override`:
@@ -175,8 +175,8 @@ The last test confirms that we are correctly handling the edge case of a null ad
     .qtb.addTest[`processRegistration`nulladdr;{[]
       r:processRegistration[22;`];
       all (not r),.qtb.matchValue["logging calls";
-				  ([] functionName:``lg; arguments:((::);"regQuest for null (invalid) handle"));
-				  .qtb.getFuncallLog[]] }];
+                                  ([] functionName:``lg; arguments:((::);"regQuest for null (invalid) handle"));
+                                  .qtb.getFuncallLog[]] }];
 
 We can now run the suite to make sure everything works as expected:
 
