@@ -223,15 +223,15 @@ priv.executeTest:{[tf;params]
     priv.reportTestResult . (params`verbose`tns),(`broke;"invalid test function");
     :`testname`result`time!(testname;`broke;0f)];
 
+  // apply overrides
+  priv.CURRENT_OVERRIDES:priv.applyOverrides params`overrides;
+ 
   teststart:.z.p;
   // execute beforeEaches
   if[not all 1b,priv.executeSpecial[;params`tns;"BEFOREEACH"] each params`beforeeach;
     priv.reportTestResult . (params`verbose`tns),(`broke;"beforeeach failure");
     :`testname`result`time!(testname;`broke;priv.durationSeconds[teststart;.z.p])];
 
-  // apply overrides
-  priv.CURRENT_OVERRIDES:priv.applyOverrides params`overrides;
- 
   resetFuncallLog[];
  
   // execute test

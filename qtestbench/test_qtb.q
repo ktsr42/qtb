@@ -19,6 +19,8 @@ privExecuteN_all:{[]
   };
 
 
+checkOverrides:{[] if[not (v;.ctx.f) ~ (42;{});'"Missing overrides!"]};
+
 // FIXME: overrides
 initTestSuite:{[]
   .qtb.priv.ALLTESTS:.tree.new[];
@@ -29,6 +31,7 @@ initTestSuite:{[]
   execute_root_test_flag::0b;  
   .qtb.addTest[`noexec;{[] execute_root_test_flag::1b; 0b}];
   .qtb.suite `realtests;
+  .qtb.setOverrides[`;`v`.ctx.f!(42;{})];
   execute_realtest_beforeAll_flag::0b;
   .qtb.addBeforeAll[`realtests;{[] execute_realtest_beforeAll_flag::1b;}];
   execute_realtest_afterAll_flag::0b;
@@ -37,8 +40,8 @@ initTestSuite:{[]
   .qtb.addBeforeEach[`realtests;{[] execute_realtest_beforeEach_counter+::1;}];
   execute_realtest_afterEach_counter::0;  
   .qtb.addAfterEach[`realtests;{[] execute_realtest_afterEach_counter+::1;}];
-  .qtb.addTest[`realtests`a;{[] 0b}];
-  .qtb.addTest[`realtests`b;{[] 1b}];
+  .qtb.addTest[`realtests`a;{[] checkOverrides[]; 0b}];
+  .qtb.addTest[`realtests`b;{[] checkOverrides[]; 1b}];
   `execute_exp_res set ([] path:(``realtests`a;``realtests`b); result:`failed`succeeded);
   `print_orig set .qtb.priv.print;
   `.qtb.priv.print set {};
@@ -57,6 +60,7 @@ restoreTestSuite:{[]
 execute_base:{[]
   initTestSuite[];
   tr:.qtb.execute `realtests;
+  if[any {x[;0]} {@[{(1b;x;value x)};x;(0b;)]}'[`v`.ctx.f];'"override left defined"];
   restoreTestSuite[];
   all .qtb.matchValue ./: (("Return value";execute_exp_res;select path, result from tr);
                       ("root_beforeAll_flag";1b;execute_root_beforeAll_flag);
