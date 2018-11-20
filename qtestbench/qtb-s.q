@@ -141,7 +141,7 @@ priv.testResTree2JunitXml:{[idl;cp;r]
 
 priv.junitXmlDoc:{[res]
   junitxml:("<?xml version=\"1.0\" encoding=\"UTF-8\"?>";"<testsuites>");
-  junitxml,:priv.testResTree2JunitXml[2;res];
+  junitxml,:priv.testResTree2JunitXml[2;`$();res];
   :junitxml,enlist"</testsuites>";
   };
 
