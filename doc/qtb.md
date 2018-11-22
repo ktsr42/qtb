@@ -1,691 +1,314 @@
-# Writing Unit Tests with QTB
+# Using Q Testbench
 
 ## Table of Contents
 
-* [Introduction](#intro)
-* [Overview over QTB](#overview)
-* [Using qtb.q](#using_qtb)
-  + [Core functions](#core_functions)
-  + [Support functions](#support_functions)
-    - [matchValue](#matchvalue)
-    - [catchX](#catchx)
-    - [checkX](#checkx)
-    - [Logging of function calls](#funcalllogging)
-* [Sample Project with Unit Tests](#sample_project)
-  + [Live unit test example](#live_example)
-    - [Suite setup](#example_suite_setup)
-    - [Unit tests](#example_unit_tests)
+[Introduction](#Introduction)
+[Writing test scripts](#writing-test-scripts)
+[Running tests](#running-tests)
+[Example test suite](#example-test-suite)
+[Function reference](#function-reference)
 
-<a name="intro">
 ## Introduction
-</a>
-
-The Q Test Bench is a framework/platform/utility (pick any overused
-buzzword of your liking) to simplify the creation of unit tests in Q,
-similar to Java's Junit or C#'s Nunit. It is based on ideas
-implemented in Simon Garland's k4unit.q (see
-[code.kx.com](http://code.kx.com/wiki/Contrib#Simon_Garland).  I
-created the Q Test Bench (qtb) to better support my own personal style
-of writing unit tests.
-
-It is my conviction that any serious programming project should be
-executed with the help of unit tests. Serious here means anything that
-is meant to be used for more than a few times or that is not trivial
-to implement. Anything that is expected to be used in production
-certainly falls into this category.
-
-From my reading of various sources, online and on dead trees, the
-definition of unit tests seems to be fairly uncontroversial. However,
-for the sake of clarity, here is what I have in mind when I use the
-term "unit test".
-
-A unit test is a program that executes a defined component (a function
-or class method) of a project's body of code and determines if the
-output of the component is consistent with the behavior expected from
-that component for the inputs provided by the unit test. Usually
-any function of the final deliverable will be covered by a number of
-unit tests.
-
-Unit tests are an integral part of the source code of a project and
-are committed to the code repository alongside the code that delivers
-desired features of the project. There should be some way to run all
-unit tests of the project with one command, for example via a separate
-target in the project's makefile. It is good practice to execute all
-unit tests during a full build of the project and to stop the build if
-any of them breaks.
-
-The unit tests help to create and maintain the final deliverable of
-the project as received by the user, but are usually not part of it.
-
-Each unit test tests its target function _in isolation_ from all other
-functions of the project and also from external dependencies, for
-example server processes that are not created during the tests
-execution time.  The assumption is that all other functions do perform
-their task in accordance with the expectations embedded in the target
-function (In other words: In accordance with the other
-function's interface and contract).
-
-I tend to think of a unit test as taking a component of a larger
-machine, e.g. a CPU chip or a motor, putting it into a test jig that
-supplies power and any other necessary inputs to elicit a certain
-result and then observing that the expected result is indeed the
-outcome of the given inputs.
-
-Manual "unit testing" usually does the same, but in a less structured
-and certainly not repeatable fashion.
-
-Each unit test must be self-contained that it can be re-run any number
-of times with the same result. It will provide the same result on any
-machine that can run the development environment and it will not
-require resources than memory, CPU time, file storage and loopback
-networking. Essentially, it must be possible to put a fresh checkout
-of the source tree onto a laptop and run all unit tests while
-disconnected from the network.
-
-Many people have written about why you should have unit tests. One
-recent article is
-["I scream, you scream, we all scream for unit tests"](http://mattspitz.me/post/16397940902/i-scream-you-scream-we-all-scream-for-unit-tests).  OOP-Programmers can find some good tips in the book
-["The Art of Unit Testing"](http://www.manning.com/osherove/). Another
-article from a recent convert is
-["The Logic of Testing and the Testing of Logic"](http://www.melbourne.co.uk/blog/2012/05/24/the-logic-of-testing-and-the-testing-of-logic/).
-
-<a name="howiwrite">
-### How I Write Unit Tests
-</a>
-
-The purists of agile programming tend to advocate that the unit test
-should be written before the code that delivers the desired
-functionality. The unit tests are put together first and will all fail
-when run. They are then "debugged" by adding the missing features. The
-cycle is complete when all unit tests pass, i.e. all targeted features
-have been implemented.
-
-From a theoretical standpoint this makes sense, but in practice it
-does not work for me. When I go into a significant development effort,
-I do not know at the beginning how I will divide things up into
-separate functions or how their interfaces will look like. Sometimes I
-make radical changes or factor out and consolidate code. As I get
-deeper into the problem space, I sometimes discover constraints or
-otherwise revise and refine the requirements, again prompting heavy
-revisions of the existing code. This means that the implementation
-tends to be fluid until I get close to the finish line.
-
-With this approach it is impractical for me to set up the unit tests
-before the code is written. At the start of the project or cycle I
-just don't know how the finished code will look like. Furthermore, my
-unit tests are designed to automate the testing that I used to do
-manually. The tests are "white box" tests, designed to follow specific
-execution paths in the code.
-
-However, as I said at the beginning, I do believe that unit tests are
-mandatory. Once I have created the main body of code I switch over to
-creating unit tests for each function. This tends to be the tedious
-part of the job, but it is well worth the effort. Lots of ink has been
-spilled on the benefits of having unit tests, so I won't repeat them
-here.
-
-After having finished writing the main code, I revisit each function
-and first consider if there really needs to be covered by unit
-tests. I don't create unit tests for functions that are trivial and
-obviously correct. The classic example for such trivial functions
-are getters and setters that are typical for OOP languages.
-
-Declaring a function to be trivial is a judgment call. Anything that
-has a conditional, including throwing or catching an exception, is
-clearly not trivial. So is anything with side-effects or dependencies
-on other parts of the program. Also, if a bug is discovered in the
-function it is clearly not correct and requires its own unit tests,
-including one for the bug.
-
-As mentioned before, the unit tests for a particular function will try
-to cover all possible execution paths. This means creating tests so
-that the branch in each conditional (including loops) as well as
-exception handlers is executed at least once. In most cases all tests
-for the function are put into the same test suite because they share a
-lot of the infrastructure for test setup, results validation and
-cleanup.
-
-Creating unit tests for pure functions that have no side-effects or
-call other functions of the program is usually straightforward. All
-variants in the behavior of the function can be reached by varying
-the arguments passed in. As it is a pure function, all we need to
-validate that the return value is the expected one.
-
-A lot more work has to be done when the target function has
-dependencies on libraries or other functions. To test it in isolation,
-all these external functions have to replaced so that the test can
-control the results and effects that the function under test sees. The
-technical terms in the literature are to "stub" or to "mock"
-sub-functions. I think the distinction is not that important in
-practice, at least not for functional programming languages.
-
-In Q it is easy to redefine a function at any point in time during a
-program's runtime because functions (lambdas) are first class data
-objects in Q. It is also possible (though not recommended for production
-code) to redefine core Q operators or functions with some fiddling.
-
-The replacement functions are usually simple, the most complex I have
-had to set up was a large conditional that lets the arguments passed
-in drive the return value if the function is called repeatedly. Given
-that we know for each unit test what the inputs are we can also derive
-how any subfunction will (should) be called. If something unexpected is
-received, the stub/mock simply fails the test by throwing an
-exception.
-
-The Q Test Bench provides features that help simplify or remove
-tedious setup or initialization code that is necessary for the target
-function to be tested. Usually a particular function is covered by
-more than one unit tests, especially if the function has
-side-effects. It also provides some help in tracking the side-effects
-of the function under test and checking the outcomes and the result
-returned by it against expectations.
-
-<a name="overview">
-## Overview over QTB
-</a>
-
-The Q test bench offers features to organize the set of unit tests
-into a tree-hierarchy. Each node in the tree is either a unit test (a
-leaf) or a branch (a suite). A suite contains a collection of tests
-and/or additional sub-suites. The tree is closely modeled on the Unix
-filesystem. Each node has a name that is unique within the enclosing
-suite. Subsuites have to be created explicitly before tests are added
-to them. From the perspective of the test bench, tests are simply
-lambdas that take no arguments and that return either true or false.
-
-The path to a given node in the tree is designated by a symbol list
-that contains the name of each node in the path as a symbol. The test
-bench can execute all tests in the tree or a selected suite, as
-directed by the path given as a parameter.
-
-The test bench provides a function to execute all or a certain sub-tree
-of all unit tests that are defined. QTB will iterate from the root of
-the tree through all sub-suites and execute any test it finds. It is a
-breadth-first execution.
-
-QTB recognizes certain special node types in the tree that help with
-factoring out repeated initialization or cleanup code and ensure that
-each of them is executed at the appropriate time.
-
-Any QTB test suite, including the root node, can have certain special
-nodes:
-
-* _before all_
-* _before each_
-* _after each_
-* _after all_
-
-The special nodes are not named, only the suite that they are part of
-is designated when they are created. The value of these special nodes
-is again a lambda with no arguments. As the name suggests, the _before
-all_ node of a suite is executed once before all tests within the
-suite. The _before each_ node is executed repeatedly, every time
-before a unit test contained in the suite is being run. Similarly, the
-_after each_ function is executed repeatedly after each unit test
-execution. The _after all_ node is executed once after the end of all
-unit test runs. Any return value from these special nodes is ignored.
-
-The purpose of the special nodes is to provide facilities to factor
-out setup and cleanup functions that are common to all unit tests in
-the suite. The boundaries between before all and before each (or after
-each/all) is not well-defined, usually it is possible to put all
-actions that are part of before all also into before each.
-
-When only a sub-tree of the unit tests is run, all special nodes along
-the path are executed by the framework at the appropriate point in
-time, including the special nodes at a higher level from the targeted
-sub-tree. Specifically, the beforeAll functions are executed before any
-subsuites are touched. Similarly, the afterAll functions are run at
-the appropriate point in time.
-
-The before- and afterEach functions are inherited along a path in the
-tree. In other words, when executing tests, the test bench will
-execute all before- and afterEach functions that were encountered on
-the along the path from the tree root, including the ones defined
-in the same suite as the tests being executed. The \*Each nodes are
-cumulative, whereas the \*All functions are not.
-
-When a unit test function is executed, it is expected to return either
-true or false (`1b` or `0b`). Any other return value, including any
-exception being thrown causes qtb to consider the test to have
-failed. If a before all or before each node throws an exception, none
-of the tests in the affected suite are run and counted as failed,
-including the tests of any sub-suites. If an exception is thrown in a
-after each or after all function, only a warning message is printed,
-but the test results are not affected.
-
-<a name="using_qtb">
-## Using qtb.q
-</a>
-
-In order to utilize the Q Test Bench, a script must load the qtb.q
-file via \\l. This file is self-contained, it provides all code that is
-necessary. I tend to separate the unit tests for the production script
-into a new file. This file loads the production code and qtb.q and
-then defines the required tests and suites.
-
-<a name="core_functions">
-### Core functions
-</a>
-
-QTB maintains only one tree of tests per session, all tests live in
-the same tree. The tree is initialized to have a root suite.
-
-New suites (sub-trees) are created by calling `.qtb.suite` and passing
-a symbol list with the suite path as an argument. The last element of
-the symbol list provided defines the name of the new suite. The full
-path must be specified and an error is thrown when any intermediate
-path element does not exist. Conversely, it is an error to create an
-existing suite a second time.
-
-Test are added to the tree by calling `.qtb.addTest`, which takes two
-parameters. The first argument gives the name and path of the suite as
-a symbol list, the second the test lambda. As when creating suites,
-the last element of the path provides the name of the test, which must
-not exist.
-
-Example:
-
-    .qtb.suite`myfunc;
-    .qtb.addTest[`myfunc`normal;{[] ... }];
-    .qtb.addTest[`myfunc`error;{[] ... }];
-
-This script creates the test suite myfunc and adds two tests to it,
-normal and error.
-
-Once the test tree has been set up, tests are executed by calling
-`.qtb.execute`. `.qtb.execute` takes one optional argument, the path to
-the sub-tree of tests that are to be executed. If no argument is given,
-all tests in the tree are executed. The path argument may designate a
-single test to run. `.qtb.execute` will either return `1b` if all unit
-tests that were executed were successful or `0b` if any one of them
-returned an error or threw an exception. It will also print a log of
-the tests and special functions that it runs to stdout.
-
-By default, qtb will catch exceptions that are thrown from the unit
-tests. This can be avoided by calling `.qtb.executeDebug` for
-debugging. When run via executeDebug, no execeptions are being caught
-by qtb, thus allowing the first exception to bubble up to the q
-prompt so that the error can be investigated more easily.
-
-Any of the special nodes are added to a suite via the functions
-
-    .qtb.addBeforeAll[`pa`th;{[] ...}]
-    .qtb.addBeforeEach[`pa`th;func]
-    .qtb.addAfterEach[`pa`th;func]
-    .qtb.addAfterAll[`pa`th;func]
-
-Each of these functions take two arguments; the first is the path to
-the suite they apply to as a symbol list, the second the lambda that
-is to be called during test execution.  It is possible to add special
-nodes (and tests) to the root suite. The root suite is designated with
-a null symbol as the path.
-
-<a name="support_funcs">
-### Support functions
-</a>
-
-In addition to the core functions for building the test tree and
-executing tests, qtb provides some supporting functions that simplify
-writing unit tests. When writing unit tests, certain patterns tend to
-occur frequently in unit test code. These functions stand alone, it is
-not mandatory to use them with the core tree-related functions
-explained above.
-
-<a name="matchvalue">
-#### matchValue
-</a>
-
-When checking return values or variables changed as a side-effect of
-the function being tested. `.qtb.matchValue` provides a standard way of
-performing this match. matchValue takes three arguments, the first is
-a designator string, the second is the expected value and the last one
-actual value. The designator string is purely for human consumption, it is
-meant to provide a reference for the programmer as to which variable did not
-take its expected value.
-
-`matchValue` will simply us the q `~` operator to compare the second and
-third arguments. If the result is false, an error message is printed
-to stdout, prefixed with the designator string from the first
-argument. matchValue uses `-3!` to generate string representations
-of the expected and actual values when generating the error
-message. No output is written when a match is observed.
-
-<a name="catchx">
-#### catchX
-</a>
-
-`.qtb.catchX` will call a function (lambda) with the given list of
-arguments and catch any exception generated from that invocation.
-catchX returns a list with two elements. The first is either the
-symbol ```success`` or the symbol ``excptn`, indicating whether the
-execution of the function resulted in an exception or not. If there
-was no exception, the second element will contain the result returned
-by the function. When an exception is thrown, the second element
-provides the string of the exception.
-
-<a name="checkx">
-#### checkX
-</a>
-
-In most cases, a unit test catches an exception to confirm that it
-actually occurred and that it was the right one. `.qtb.checkX` is built
-on top of `.qtb.catchX` and provides that functionality. checkX takes
-three arguments. The first two are as for catchX, the third is the
-string of the exception being expected.
-
-If the expected exception occurs, checkX will not write and messages
-to stdout and return 1b. In all other cases, checkX will write an
-error message and return 0b.
-
-<a name="funcalllogging">
-#### Logging of function calls
-</a>
-
-As mentioned in the introduction, I write unit tests so that each
-function being tested (the target function) is tested largely in
-isolation of functions it depends upon. This means that all
-non-trivial functions that the target function can call during a
-particular test have to be replaced by stub or mock functions.
-
-In the simplest form, the stub function can be written so that it
-processes its arguments only to the extent necessary to determine
-which pre-determined value to return so that the test progresses in
-the right direction. However, I find it usually desirable to log each
-invocation of sub-functions of the test target and have the unit test
-assert that the function has been invoked the expected number of times
-with the expected arguments at each point. This provides a degree of
-certainty that the target function behaved as expected.
-
-QTB provides the function `.qtb.wrapLogCall` that wraps another function
-so that the arguments that are passed into the function when invoked
-are recorded in an internal table. After that, the original function
-is invoked as normal and the result returned back to the caller. This
-provides a common means of tracking function invocations and
-evaluating them after the fact. The result of wrapLogCall is a new
-function that can be used to override a function called by the test
-target.
-
-In other words, the function passed into wrapLogCall provides the
-unique behavior of the stub, for example checking its arguments and
-returning different results for specific cases. wrapLogCall just
-enhances it with the argument logging facilities, avoiding the need to
-code them explicitly into each stub.
-
-The first argument to wrapLogCall is a symbol with the name or
-identifier of the function being wrapped. This identifier will be used
-to record the function calls in the internal tracking table. The
-tracking table is a global table and thus shared between all functions
-that are wrapped. Therefore, the tracking table must be explicitly
-cleaned before each individual test via `.qtb.resetFuncallLog`, otherwise
-log entries from other unit tests will pollute the log of function
-calls done by the current tests.
-
-The current state of the tracking table can be retrieved via
-`.qtb.getFuncallLog[]`. This returns a copy of the tracking table, which
-has two columns, functionName and arguments. The functionName column
-is populated from the name symbol argument given to wrapLogCall.
-Typically the name symbol given to wrapLogCall is the name of the
-function that is being overridden with it. The arguments column
-receives a list with the values of all arguments as they have been
-passed in.
-
-In order to stop any automatic type promotion the empty log table is
-always populated with one row that has `` ` `` as the function name and the
-identity object `::` as the value. getFuncallLog[] returns the log table
-with this stub entry included.
-
-Generally, wrapLogCall and its friends are used in the following
-pattern for a single test. The function f is the function being
-tested. It is expected that it calls the functions sfa an d sfb
-(subfunction a and b) for this particular test.
-
-1. Test setup, including a call to .qtb.resetFuncallLog;
-
-2. Override relevant functions called by the test target, e.g.
-
-        sfa::.qtb.wrapLogCall[`sfa;{[x;y] ...}];
-        sfb::.qtb.wrapLogCall[`sfb;{[a;b;c] ...}];
-
-3. Invoke the target function, which in turn will call sfa and sfb:
-
-        f[...]
-
-4. Checking of the target function's return value and other outputs, including
-   the function call log via something like:
-
-        ([] functionName:``sfa`sfb; arguments:((::);(1;`example);(1b;0Nf;19))) ~ .qtb.getFuncallLog[]
-
-<a name="sample_project">
-## Sample Project with Unit Tests
-</a>
-
-As a demonstration of how the Q Test Bench can be used (and also as a
-"dogfooding" exercise) I implemented a separate project and used qtb
-for writing all the unit tests.
-
-The project is to write a messaging server in q that simplifies the
-messaging between processes. A process is dedicated to forwarding
-messages between separate q processes and each client process is
-relieved of the connection management requirements. Instead, each
-client process maintains only a connection to the forwarding agent.
-This connection is hidden inside a client library that is loaded and
-initialized. Communication partners are no longer designated by the
-host and port but instead via symbolic name that must be unique across
-all clients of the forwarding agent. It is the responsibility of the
-system administrator to ensure that all names are unique.
-
-This relieves the client code to deal with connection handling and
-basic message validation. All other processes in the system can be
-reached just by sending a message to the correct address. Message
-reception is implemented in Erlang-style, meaning that the incoming
-messages are queued and the client code has to explicitly ask for the
-next one.
-
-The implementation of this system is split into three parts. One
-script, `msgsrvr.q`, implements the forwarding agent and is a
-standalone program. The client (`msgclient.q`) is a script that
-expects to be loaded into another q program. Both server and client
-share the library "`dispatch.q`". This module dispatches messages,
-i.e. it inspects the message and calls the handler function defined
-for the type of message.
-
-The unit tests for each component are defined in separate scripts,
-`test-dispatch.q`, `test-msgsrv.q` and `test-msgclient.q`. Each of
-them loads the script it is targeted at from the same directory.
-
-<a name="live_example">
-### Live unit test example
-</a>
-
-As a real-world example on how to write and run unit tests with qtb we
-describe the unit tests for the function `receiveMsg` in
-`msgsrvr.q`. As mentioned above, the unit tests for this function live
-in `test-msgsrv.q`.
-
-Below is the definition of the function in `msgsrvr.q`.  It is
-responsible for processing incoming messages in the messaging server.
-
-    receiveMsg:{[ch;msg]
-      lg "Received msg ",(-3!msg);
-      req:$[10 = type msg; parse msg; msg];
-
-      resp:@[{[args] (1b;) .dispatch.call@args}; first[req],ch,1 _ req; {[err] (0b;err)}];
-      $[first resp;     lg "Successfully processed request, result: ",-3!last resp;
-        not first resp; lg "Error evaluating request: ",last resp;
-                        lg "Internal error, invalid evaluation result: ",-3!resp];
-      lg "Request processing complete";
-      };
-
-The function is called from the q asynchronous message handler
-`.z.ps`.  It receives the file handle of the communication socket as
-the first argument and the raw message as it was received by `.z.ps`
-as the second. It first logs the reception of the message and its
-contents.  If the message is a string, it uses the q parse function to
-turn it into a structure that can be passed to q's `eval`, i.e. a
-general list where the first element is a symbol identifying the
-function to call and the remainder the arguments to pass to that
-function.
-
-`receiveMsg` inserts the socket file handle on which the message came
-in as the first argument to the function to be called and then uses
-the library function `.dispatch.call` to process the message. The
-dispatch library uses the first element of the list passed to
-`.dispatch.call` to find the function to call. Each function that can
-be called via `.dispatch.call` has to be registered with the
-library. When registering a function to be called, the argument types
-of the function (commonly called the signature) must also be defined.
-`.dispatch.call` checks the arguments passed to it against this
-signature and throws an exception if there is a mismatch.
-
-`receiveMsg` catches any exception thrown from `.dispatch.call` and
-logs the outcome of the call. It is designed not to throw any
-exceptions of its own because it is typically called when processing
-asynchronous messages where there is no obvious top level to which
-exceptions can be bubbled up to.
-
-<a name="example_suite_setup">
-#### Suite setup
-</a>
-
-All unit tests for the `receiveMsg` functions are grouped together
-into the suite `receiveMsg. Here are the definition of the suite and
-the creation of a beforeAll special node:
-
-    .qtb.suite`receiveMsg;
-    .qtb.addBeforeAll[`receiveMsg;{[]
-      lg_orig::lg;
-      lg::.qtb.wrapLogCall[`lg;{[msg]}];
-      dispatch_call_orig::.dispatch.call;
-      .dispatch.call::.qtb.wrapLogCall[`.dispatch.call;{[args]}];
-    }];
-
-`receiveMsg` calls the functions `lg` and `.dispatch.call`. Before any
-tests are executed, we preserve the original definitions in global
-variables (`lg_orig` and `dispatch_call_orig`) and override each
-function with a dummy that logs each invocation with the help of
-`.qtb.wrapLogCall`. Once all tests are complete, we have qtb restore
-the original definition of both functions in the _afterAll_ event:
-
-    .qtb.addAfterAll[`receiveMsg;{[]
-      .dispatch.call::dispatch_call_orig;
-      lg::lg_orig;
-    }];
-
-Lastly, as we use logging functions provided by `.qtb.wrapLogCall` we
-have qtb clean out the call log before each unit test in the suite.
-
-    .qtb.addBeforeEach[`receiveMsg;{[] .qtb.resetFuncallLog[]; }];
-
-<a name="example_unit_tests">
-#### Unit tests
-</a>
-
-The first test, called `ok` confirms that `receiveMsg` behaves as
-expected when a message is successfully received. For that purpose, it
-is invoked with some arbitrary test arguments (10 and and a list with
-the symbols `afunc` and `arg`. In order to confirm that the
-function has performed its intended purpose, the call log of the
-overridden functions is examined. We check that each overridden
-function is called in the right order with the right parameters. First
-we expect the function call ``lg["Received msg `afunc`arg"]``, then
-``.dispatch.call[`afunc;10;`arg]``, then `lg["Successfully processed request, result: ::"]`
-and lastly the call `lg["Request processing complete"]`.
-
-The current log of all functions that have been called via a logging
-wrapper from `.qtb.wrapLogCall` can be retrieved using
-`.qtb.getFuncallLog`.  This function simply returns a copy of the
-table where the call log is maintained. The first column provides the
-name of the function that was called as a symbol. This is the symbol
-that was passed into `.qtb.wrapLogCall`. The second column holds the
-list of arguments. In order to ensure that there is never any
-automatic type promotion of the arguments column, the empty table is
-always populated with a dummy row. This dummy row is also returned
-from `.qtb.getFuncallLog`, so we have a to account for it when checking
-the table in the test.
-
-We use `.qtb.matchValue` to compare the actual call log table to the
-expected one. In order to do that, we have to write the expected call
-log as a table.
-
-    .qtb.addTest[`receiveMsg`ok;{[]
-      receiveMsg[10;(`afunc;`arg)];
-      .qtb.matchValue["Function call log";
-		      ([] functionName:``lg`.dispatch.call`lg`lg;
-			  arguments:((::);
-				     "Received msg `afunc`arg";
-				     (`afunc;10;`arg);
-				     "Successfully processed request, result: ::";
-				     "Request processing complete"));
-		       .qtb.getFuncallLog[]]}];
-
-`.qtb.matchValue` returns true or false depending on whether the
-expected and actual values match or not. This becomes the overall
-result of the test as it is the last expression in the test function.
-
-The second unit test `error` confirms that `receiveMsg` behaves as
-expected when an exception is thrown from `.dispatch.call`. For that
-purpose the test overrides it with a different function from the one
-used by the suite. The override function also uses the call log
-wrapper, but it throws the exception "whoops!". We only use this
-override for this particular unit tests so we first have to preserve
-the current definition of `.dispatch.call` and restore it after
-calling `receiveMsg`.
-
-    .qtb.addTest[`receiveMsg`error;{[]
-      dispatch_call_orig:.dispatch.call;
-      .dispatch.call::.qtb.wrapLogCall[`.dispatch.call;{[req] '"whoops!"}];
-      receiveMsg[3;(`afunc;`xx)];
-      .dispatch.call::dispatch_call_orig;
-      .qtb.matchValue["Function call log";
-		      ([] functionName:``lg`.dispatch.call`lg`lg;
-			  arguments:((::);
-				     "Received msg `afunc`xx";
-				     (`afunc;3;`xx);
-				     "Error evaluating request: whoops!";
-				     "Request processing complete"));
-		       .qtb.getFuncallLog[]]}];
-
-As in the `ok` unit test, we use `.qtb.matchValue` to inspect the
-call logs and confirm that `receiveMsg` has behaved the way we want it to.
-
-The last unit test `string` simply test the wrinkle that the
-incoming message can also be a string instead of a general list and
-that `receiveMsg` applies `parse` to incoming strings.
-
-    .qtb.addTest[`receiveMsg`string;{[]
-      receiveMsg[13;"afunc[`arg]"];
-      .qtb.matchValue["Function call log";
-		      EL::([] functionName:``lg`.dispatch.call`lg`lg;
-			  arguments:((::);
-				     "Received msg \"afunc[`arg]\"";
-				     (`afunc;13;enlist `arg);
-				     "Successfully processed request, result: ::";
-				     "Request processing complete"));
-		       .qtb.getFuncallLog[]]}];
-
-Via these three unit tests, we have covered all execution paths
-through `receiveMsg` except the else branch in the last conditional
-`lg "Internal error, invalid evaluation result: ",-3!resp`. We have
-skipped that because it is only a safety catch in case the function
-itself has a serious internal bug and because there is no reasonable
-way to reach that branch by manipulating the inputs to `receiveMsg`
-and the subfunctions it calls.
-
-Here is the output of qtb when running the `receiveMsg` suite:
+
+For the purposes of qtb, a test is a lambda that takes no argument and returns true (1b - test succeeded) or false (0b - test failed). Qtb organizes tests into a tree hierarchy, similar to a filesystem. Paths into the tree are given by symbol lists. The root of the tree is designated by the null symbol (`` ` ``). Test cases are leaf nodes and test suites branches.
+
+Each suite can have additonal lambdas attached to it, a `beforeAll` lambda, a `beforeEach` as well as a `afterEach` and `afterALl`. As the name suggests `beforeAll` lambdas are executed before all any tests in the relevant suite and `afterAll` after all tests in the suite have been run. Similarly, `beforeEach`/`afterEach` lambdas are run before or after each test in the suite. The `beforeEach` and `afterEach` functions cascade down the tree, i.e. for tests in a sub-suite all beforeEaches that are defined in the enclosing suites will be run as well as all afterEaches.
+
+The purpose of the `beforeAll`/`beforeEach` and `afterAll`/`afterEach` lambdas is to allow the user to create and clean up test fixtures.
+
+In addition, suites can also have an override definition. Overrides are given as dictionaries where the keys provide the fully qualified variable names and the values the new value for each target variable to be set. For each test within the scope of the suite the overrides are attached to, qtb will reset the target variables to the values given in the dictionary. Overrides also propagates down into subsuites.
+
+In order to use qtb, the `qtb.q` script has to be loaded from the test script before any test is defined. The root of the test hierarchy is defined implicitly, all other suites have to be declared explicitly via `.qtb.suite`. This function takes a symbol list as argument; the path of the new suite. All path elements except the last one must exist, and the last one must not exist at the time of invoking .qtb.suite. Once a suite (branch) has been created, test cases and other suites can be added to it via `.qtb.addTest`.
+
+The tests can then be executed from within the q session via `.qtb.execute`. Alternatively they can be automatically run by calling `.qtb.run[]` at the end of the script and passing `-qtb-run` at the command-line. The test cases defined in the script will then be run automatically.
+
+## Writing test scripts
+
+A test script should load the `qtb.q` script as well as the actual production code it is targeting before declaring any tests. If desired, individual tests can then be added to the root test suite by calling
+
+    .qtb.addTest[`test;{[] ...}];
+
+Overrides, beforeAll, beforeEach, afterEach and afterAll scripts can also be added by calling the relevant insertion functions:
+
+    .qtb.overrides[`;<dict>];
+    .qtb.addBeforeAll[`;{[] ...}];
+    .qtb.addBeforeEach[`;{[] ...}];
+    .qtb.addAfterEach[`;{[] ...}];
+    .qtb.addAfterAll[`;{[] ...}];
+
+Subsuites are declared by calling:
+
+    .qtb.suite`suitename;
+
+There suites can be nested as deeply as desired:
+
+    .qtb.suite`sometests;
+    .qtb.suite`sometests`subtests;
+    .qtb.suite`sometests`subtests`subsubtests;
+    .qtb.suite`sometests`othertests;
+
+The lambda passed to `.qtb.addTest`, i.e. the actual test case code, must return either 1b for test success or 0b for test failure. Any other return value including throwing an exception is considered an error.
+
+The return values of lambdas passed to `.qtb.addBeforeAll`, etc. are ignored during test execution. However, if a beforeXXX lambda throws an exception, all tests within its scope are skipped. The assumption is that required setup for the tests is not present for them to succeed. If an afterXXX lambda raises an exception, all the result of all affected tests is set to `` `broke``.
+
+## Running tests
+
+After all suites and tests have been declared, the user can call `.qtb.run[]` at the end of the script. This will parse the command-line arguments of the script and automatically start executing tests if the flag `-qtb-run` is given on the command-line. The automated execution will only be triggered when script has been run directly from the commandline with the flag present, e.g.:
+
+    ~ $ q <mytests>.q -qtb-run
+
+Alternatively the test script can be loaded into a q session, either via `\l` or by omitting the `-qtb-run` argument. In that case, test execution can be triggered by calling
+
+    q).qtb.execute[]
+
+When triggered, qtb will start at the root of the hierarchy, apply overrides, call beforeAll/beforeEach and afterEach/afterAll as appropriate while executing tests and collecting the results.
+
+By default, qtb will catch and report exceptions that are thrown from the test lambdas. While running qtb interactively from a q session, this can be disabled by running:
+
+    q).qtb.executeDebug[]
+
+instead of `.qtb.execute`. In case of an exception (but not when a test fails) the standard q debugger will be invoked.
+
+It is also possible to limit the execution to a specific suite or test by passing the path as a symbol list:
+
+    q).qtb.execute`sometest`subtests
+
+or
+
+    q).qtb.execute`somtests`mytest
+
+`.qtb.executeDebug` can similarly be limited in execution scope. Note that all overrides and test setup/teardown lambdas in outside of the target test scope will still be applied or executed, respectively.
+
+
+## Example test suite
+
+For development of qtb, I am using the msglib project as a test project to write unit tests with qtb.q (see `./msglib`). Users are encouraged to read through the spec, the implementation and the resulting unit test scripts. Please note that at this point most features listed in the spec are not implemented.
+
+We will here walk through one particular suite for the function `processRegistration` in msglib/msgsrv.q. It handles the registration of newly connected clients, who must supply us with a uniqe identifier for themselves. The function tracks this in the CONNS global table, which is keyed by handle id.
+
+    processRegistration:{[handle;primAddr]
+      if[null primAddr;
+        lg "regQuest for null (invalid) handle";
+        :0b];
+
+      registeredHandle:CONNS[primAddr;`clientHandle];
+      primAddrS:string primAddr;
+      if[null registeredHandle;
+        lg "Registering client with primary address ",primAddrS;
+        `CONNS upsert (primAddr; handle);
+        :1b];
+
+      if[isValidConnHandle registeredHandle;
+        :$[handle = registeredHandle;
+           [lg "Re-registration from client ",primAddrS;             1b];
+           [lg "Failed registration for primary address ",primAddrS; 0b]]];
+
+      lg "Warning: Found invalid handle for primary address ",primAddrS,", replacing registration";
+      connectionDropped registeredHandle;
+      `CONNS upsert (primAddr; handle);
+      1b };
+
+
+As can be seen from the code, the function has a few different code paths and modifies global data. So therefore we will want to call it for testing purposes with different states of the outside world. That means we will have different tests for the same function with similar but not quite identical setups. We therefore create a test suite:
+
+    .qtb.suite`processRegistration;
+
+Note: all code described here can be found in `msglib/test-msgsrv.q` from line 10ff.
+
+The function calls the `isValidHandle` function and reads and manipulates the CONNS global table. We will want to change the behavior of the function or the data in the table to suit our test purposes, so best we add overrides for them:
+
+    .qtb.setOverrides[`processRegistration;`isValidConnHandle`CONNS!({[ignore] 1b};0#CONNS)];
+
+Now we can add our first test:
+
+    .qtb.addTest[`processRegistration`successful_add;{[]
+      r:processRegistration[22;`me];
+      checks:(("CONNS table";([primaryAddress:el `me] clientHandle:el 22i);CONNS);
+              ("logging calls";([] functionName:``lg; arguments:((::);"Registering client with primary address me"));.qtb.getFuncallLog[]));
+      all r,.qtb.matchValue ./: checks }];
+
+This declares the test `successful_add` in the `processRegistration` test suite.  When run, this test will call `processRegistration with the handle number 22 and `` `me`` as arguments. The  `CONNS`  table will be empty and `isValidConnHandle` will return true.
+
+In this test case we expect the registration to succeed (return value 1b), that the arguments provided to the function are stored in the `CONNS` table and that the function writes a log message. Note that the log function `lg` has been overriden at the root level of the test tree to not output anything, but to record all calls with their arguments. Qtb provides helper functions that make it easy to create no-op replacement functions that just record their invocation arguments. These calls are logged in a table and can be retrieved via `.qtb.getFuncalllog[]`. Please see the Reference section in this document for a full description of these functions.
+
+We are using the `.qtb.matchValue` helper function to verify the expected side-effects, i.e. the modification of the CONNS table and the log call. The test function uses `all` to collapse the vector of individual check results to one final boolean return value.
+
+The next test in the suite `duplicate` checks the behavior in case of a duplicate registration, i.e. a secondary call with the same connection handle and primary address.
+
+    .qtb.addTest[`processRegistration`duplicate;{[]
+      .qtb.override[`CONNS;([primaryAddress:el `me] clientHandle:el 22)];
+      r:processRegistration[22;`me];
+      checks:(("CONNS table";([primaryAddress:el `me] clientHandle:el 22);CONNS);
+              ("logging calls";([] functionName:``lg; arguments:((::);"Re-registration from client me"));.qtb.getFuncallLog[]));
+      all r,.qtb.matchValue ./: checks}];
+
+This is only a slight variation from the initial test, all we have to change is the contents of the `CONNS` table to create the conflicting primary address and adjust out expected side-effects. We use the `.qtb.override` helper function to get the CONNS table to the right initial state.
+
+The next test checks that a registration for a pre-existing primary address where the old handle turns out to be invalid is handled properly. We modify the `isValidHandle` function to return false. We also have to override the `connectionDropped` function from `msgsrv.q` because it is automatically called by `processRegistration` if an invalid handle is detected.
+
+    .qtb.addTest[`processRegistration`replace;{[]
+      .qtb.override[`CONNS;([primaryAddress:el `me] clientHandle:el 22)];
+      .qtb.override[`connectionDropped;.qtb.callLogS`connectionDropped];
+      .qtb.override[`isValidConnHandle;{[ignore] 0b}];
+      r:processRegistration[23;`me];
+      checks:(("CONNS table";([primaryAddress:el `me] clientHandle:el 23);CONNS);
+              ("Function calls";
+              ([] functionName:``lg`connectionDropped;
+                  arguments:((::);"Warning: Found invalid handle for primary address me, replacing registration";enlist 22));
+              .qtb.getFuncallLog[]));
+      all r,.qtb.matchValue ./: checks }];
+
+Another test confirms that the registration fails if an existing one under the respective name is detected. For this thet we have to provide a matching entry in the `CONNS` table, which we do via `.qtb.override`:
+
+    .qtb.addTest[`processRegistration`clash;{[]
+      .qtb.override[`CONNS;conns:([primaryAddress:el `me] clientHandle:el 22)];
+ 
+      r:processRegistration[33;`me]; 
+      checks:(("CONNS table";conns;CONNS);
+              ("Funcall log";
+              ([] functionName:``lg; arguments:((::);"Failed registration for primary address me"));
+              .qtb.getFuncallLog[]));
+      all (not r),.qtb.matchValue ./: checks}];
+
+The last test confirms that we are correctly handling the edge case of a null address registration, which we consider invalid. 
+
+    .qtb.addTest[`processRegistration`nulladdr;{[]
+      r:processRegistration[22;`];
+      all (not r),.qtb.matchValue["logging calls";
+                                  ([] functionName:``lg; arguments:((::);"regQuest for null (invalid) handle"));
+                                  .qtb.getFuncallLog[]] }];
+
+We can now run the suite to make sure everything works as expected:
 
     q)\l test-msgsrv.q
-    q).qtb.execute`receiveMsg
-    Executing BEFOREALL for .receiveMsg
-    Executing BEFOREEACH for .receiveMsg.ok
-    Test .receiveMsg.ok succeeded
-    Executing BEFOREEACH for .receiveMsg.error
-    Test .receiveMsg.error succeeded
-    Executing BEFOREEACH for .receiveMsg.string
-    Test .receiveMsg.string succeeded
-    Executing AFTERALL for .receiveMsg
-    Tests executed: 3
-    Tests successful: 3
-    Tests failed: 0
-    1b
+    q).qtb.execute`processRegistration
+    .....
+    path                               result   
+    --------------------------------------------
+    processRegistration successful_add succeeded
+    processRegistration duplicate      succeeded
+    processRegistration replace        succeeded
+    processRegistration clash          succeeded
+    processRegistration nulladdr       succeeded
     q)
+
+Or from the command line:
+
+    klaas@folio:~/Projects/qtb/main/msglib$ q test-msgsrv.q -qtb-run
+    KDB+ 3.6 2018.05.17 Copyright (C) 1993-2018 Kx Systems
+    l32/ 4()core 7858MB klaas folio 127.0.1.1 NONEXPIRE  
+
+    ...................
+    klaas@folio:~/Projects/qtb/main/msglib$
+
+Note that test-msgsrv.q includes other tests and there is no means to restrict the test execution scope from the command-line.
+
+## Function reference
+
+### Test suite and test case declaration
+
+`.qtb.suite`
+
+Takes one argument, a symbol or list identifying the path and name of test suite to be created. Will throw an error if the target suite aready exists or any intermediate test suite in the path does not exist.
+
+
+`.qtb.addTest`
+
+Must be called with two arguments, a path into a test suite and a lambda that is to executed as that test. The lambda must return a boolean value when called, anything else is considered an error, including exceptions.
+
+
+`.qtb.addBeforeAll`
+`.qtb.addAfterAll`
+`.qtb.addBeforeEach`
+`.qtb.addAfterEach`
+`.qtb.setOverrides`
+
+All of these functions bar `setOverrides` expect a path and a lambda as arguments. The path must resolve to an existing test suite. The lambda will be called at the relevant point in the test execution cycle. Any return value is ignored and an exception marks all test cases in that suite as "broken".
+
+Instead of a lambda, setOverrides expectes a dictionary the the symbol keys designate global variables (including fuctions) and the values provide the value that each symbol should resolve to during the execution of the respective test suite. The values are re-assigned before each test case within the scope of the suite. The target variables may be any valid global, i.e. values or lambdas in the root context (`` `x ``) or any subcontext (`` `.my.test.data``).
+
+The target variables may or may not exist. In either case, qtb will revert the state of each target to the state it had before the test execution started after the execution of all test cases within the scope of the target test suite completes. This extends to `.z` special variables, which will be properly expunged (by calling system "x .z.XX") if necessary.
+
+### Test case construction
+
+.qtb.override
+
+Requires a symbol and an override value. Allows it to override individual global variables at the time of invocation, i.e. to apply overrides from a test case lambda.
+
+`.qtb.logFuncall`
+`.qtb.getFuncallLog`
+`.qtb.emptyFuncallLog`
+`.qtb.resetFuncallLog`
+
+qtb provides generic machinery to record events in a consolidated, typical function calls. `.qtb.logFuncall` requires a symbol and a list as arguments and records the values in an internal table for later retrieval via `.qtb.getFuncallLog`. Here is the schema of the table:
+
+    ([] functionName:`$(); arguments:())
+
+Note that qtb ensures that the first row in this table is a sentinel entry (functionName = ` and arguments = (::)) to avoid any kind of automatic type promotion of columns. This empty table is returned by `.qtb.emptyFuncallLog`, which takes no arguments.
+
+The sentinel needs to be taken into account when creating an expected log of subfunction calls for a particular test case. So if no subfunction calls are expected, the assertion to check is:
+
+    .qtb.getFuncallLog[] ~ .qtb.emptyFuncallLog[]
+
+The call log is automatically flushed after each individual test case. If necessary, this can be done manually by calling `.qtb.resetFuncallLog`.
+
+### Automatic call recording
+
+qtb provides functions to generate override functions that automatically record their invocation arguments in the call log described in the previous section. Typically the generated function becomes a override value in the dictionary passed to `.qtb.setOverrides` or as the second argument to `.qtb.override`.
+
+
+`.qtb.callLogNoret`
+
+The simplest override function just records its invocation and arguments but otherwise does nothing. It can be easily generated via `.qtb.callLogNoret`, which only takes the name of the target function as an argument. 
+
+
+.qtb.callLogSimple
+
+Another freqently occurring situation is that the override function should simply return a particular value, regardless of its arguments. Such a lamdba can be created by calling `.qtb.callLogSimple` and giving it the name of the target function and the return value as arguments.  The return value may be anything that is not a function (q type >= 100h).
+
+.qtb.callLog
+
+If the override function needs to perform some computation, a lambda performing this it can be wrapped via .qtb.callLog to record its invocation first. `.qtb.callLog` takes the target function identifier as first argument and the relevant lambda as the second.
+
+.qtb.callLogComplex
+
+All callLog* functions described above take the name of the target function as the first argument and use that as the functionName value when logging invocations. Note that the implementation uses .qtb.countargs (see below) to ensure that the generated function takes the same number of arguments as the original. However, sometimes countargs is not able to determine the correct valence of the target; for example for q builtin functions.  In that case, `.qtb.callLogComplex` can be used to generate the wrapped function. It requires three arguments, the target function name, the override function lambda or standard return value and the valence of the target function as a third.
+
+### Other simple helper functions
+
+.qtb.checkX
+
+`.qtb.catchX` will call a function (lambda) with the given list of arguments and catch any exception generated from that invocation. `catchX` returns a list with two elements. The first is either the symbol ```success`` or the symbol ``excptn`, indicating whether the execution of the function resulted in an exception or not. If there was no exception, the second element will contain the result returned by the function. When an exception is thrown, the second element provides the string of the exception.
+
+
+.qtb.catchX
+
+In most cases, a unit test that catches an exception to confirm that it actually occurred and that it was the right one. `.qtb.checkX` is built on top of `.qtb.catchX` and provides that functionality. checkX takes three arguments. The first two are as for catchX, the third is the string of the exception being expected.
+
+If the expected exception occurs, checkX will not write and messagesto stdout and return 1b. In all other cases, checkX will write an error message and return 0b.
+
+
+.qtb.matchValue
+
+When checking return values or variables changed as a side-effect of the function being tested. `.qtb.matchValue` provides a standard way of performing this match. matchValue takes three arguments, the first is a designator string, the second is the expected value and the last one actual value. The designator string is purely for human consumption, it is meant to provide a reference for the programmer as to which variable did not take its expected value.
+
+`matchValue` will simply us the q `~` operator to compare the second and third arguments. If the result is false, an error message is printed to stdout, prefixed with the designator string from the first argument. matchValue uses `-3!` to generate string representations of the expected and actual values when generating the error message. No output is written when a match is observed.
+
+.qtb.countargs
+
+This is a helper function that tries to determine the number of arguments a given function takes. It also supports projections. However, it cannot deal with q's builtin functions or functions from plugins. `.qtb.countargs` simply takes the function body as argument and returns a number or throws an exception.
+
+
+### Command-line argument processing
+
+.qtb.run
+
+.qtb.run should be called at the end of a test script. It will process the command-line arguments when the script is run and start the test execution if requested. The automatic test execution and termination of the script is only triggered if the script name and the necessary argument has been passed on the command-line while running q. This means that nothing will happen if the script is loaded into a running q session even if it has the right command-line argument.
+
+Command-line arguments recognized:
+
+* `-qtb-run`: Automatically execute all tests and exit
+* `-qtb-verbose`: Provide more debugging output while executing tests
+* `-qtb-debug`: Stop in the debugger when the first exception is throw.
+* `-qtb-junit <filename>`: Write a junit-compatible xml file with the test results.
+   
