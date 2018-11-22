@@ -780,14 +780,14 @@ testResTree2JunitXml_all:{[]
   subsuite1:enlist `suitename`start`time`tests!(`te;2018.11.11D11:11:11.0;1.1;-1 _ tres);
   subsuite2:enlist `suitename`start`time`tests!(`st;2018.02.02D02:02:02.0;2.2;-1 _ tres);
   basesuite:`suitename`start`time`tests!(`root;2018.03.03D03:03:03.0;0.3;(subsuite1,tres,subsuite2) 0 1 2 3 5);
-  tresdoc:("  <testcase name=\"testa\" classname=\"\" time=\"1.2\" />";
-           "  <testcase name=\"testb\" classname=\"\" time=\"0.01\">";"    <failure />";"  </testcase>";
-           "  <testcase name=\"testc\" classname=\"\" time=\"0\">";   "    <error />";"  </testcase>");
-  rootsuite:"<testsuite name=\"root\" errors=\"1\" failures=\"1\" tests=\"3\" timestamp=\"2018-03-03T03:03:03.000\" time=\"0.3\">";
-  te_suite:"<testsuite name=\"root.te\" errors=\"1\" failures=\"1\" tests=\"3\" timestamp=\"2018-11-11T11:11:11.000\" time=\"1.1\">";
-  st_suite:"<testsuite name=\"root.st\" errors=\"1\" failures=\"1\" tests=\"3\" timestamp=\"2018-02-02T02:02:02.000\" time=\"2.2\">";
-  expdoc:raze {[td;ste] enlist[ste],td,("  <properties />";"  <system-out />";"  <system-err />";"</testsuite>")}[tresdoc] each (rootsuite;te_suite;st_suite);
-  :expdoc ~ .qtb.priv.testResTree2JunitXml[0;`$();basesuite];
+  tresdoc:("  <testcase name=\"testa\" classname=\"\" time=\"1.200\" />";
+           "  <testcase name=\"testb\" classname=\"\" time=\"0.010\">";"    <failure type=\"failed\"/>";"  </testcase>";
+           "  <testcase name=\"testc\" classname=\"\" time=\"0.000\">";   "    <error type=\"broke\"/>";"  </testcase>");
+  rootsuite:"<testsuite name=\"root\" package=\"\" hostname=\"",string[.z.h],"\" errors=\"1\" failures=\"1\" tests=\"3\" timestamp=\"2018-03-03T03:03:03\" time=\"0.300\">";
+  te_suite:"<testsuite name=\"root.te\" package=\"\" hostname=\"",string[.z.h],"\" errors=\"1\" failures=\"1\" tests=\"3\" timestamp=\"2018-11-11T11:11:11\" time=\"1.100\">";
+  st_suite:"<testsuite name=\"root.st\" package=\"\" hostname=\"",string[.z.h],"\" errors=\"1\" failures=\"1\" tests=\"3\" timestamp=\"2018-02-02T02:02:02\" time=\"2.200\">";
+  expdoc:E::raze {[td;ste] (ste;"  <properties />"),td,("  <system-out />";"  <system-err />";"</testsuite>")}[tresdoc] each (rootsuite;te_suite;st_suite);
+  :expdoc ~ A::.qtb.priv.testResTree2JunitXml[0;`$();basesuite];
   };
 
 ALLTESTS:`privExecuteN_all,execute_SUITE,catchX_SUITE,checkX_SUITE,countargs_SUITE,isEmptyFunc_SUITE,
