@@ -2,15 +2,15 @@
 
 ## Table of Contents
 
-[Introduction](#Introduction)
-[Writing test scripts](#writing-test-scripts)
-[Running tests](#running-tests)
-[Example test suite](#example-test-suite)
-[Function reference](#function-reference)
+* [Introduction](#Introduction)
+* [Writing test scripts](#writing-test-scripts)
+* [Running tests](#running-tests)
+* [Example test suite](#example-test-suite)
+* [Function reference](#function-reference)
 
 ## Introduction
 
-For the purposes of qtb, a test is a lambda that takes no argument and returns true (1b - test succeeded) or false (0b - test failed). Qtb organizes tests into a tree hierarchy, similar to a filesystem. Paths into the tree are given by symbol lists. The root of the tree is designated by the null symbol (`` ` ``). Test cases are leaf nodes and test suites branches.
+For the purposes of qtb, a test is a lambda that takes no argument and returns true (1b - test succeeded) or false (0b - test failed). Qtb organizes tests into a tree hierarchy, similar to a filesystem. Paths into the tree are given by symbol lists. The root of the tree is designated by the null symbol (\`). Test cases are leaf nodes and test suites branches.
 
 Each suite can have additonal lambdas attached to it, a `beforeAll` lambda, a `beforeEach` as well as a `afterEach` and `afterALl`. As the name suggests `beforeAll` lambdas are executed before all any tests in the relevant suite and `afterAll` after all tests in the suite have been run. Similarly, `beforeEach`/`afterEach` lambdas are run before or after each test in the suite. The `beforeEach` and `afterEach` functions cascade down the tree, i.e. for tests in a sub-suite all beforeEaches that are defined in the enclosing suites will be run as well as all afterEaches.
 
@@ -49,7 +49,7 @@ There suites can be nested as deeply as desired:
 
 The lambda passed to `.qtb.addTest`, i.e. the actual test case code, must return either 1b for test success or 0b for test failure. Any other return value including throwing an exception is considered an error.
 
-The return values of lambdas passed to `.qtb.addBeforeAll`, etc. are ignored during test execution. However, if a beforeXXX lambda throws an exception, all tests within its scope are skipped. The assumption is that required setup for the tests is not present for them to succeed. If an afterXXX lambda raises an exception, all the result of all affected tests is set to `` `broke``.
+The return values of lambdas passed to `.qtb.addBeforeAll`, etc. are ignored during test execution. However, if a beforeXXX lambda throws an exception, all tests within its scope are skipped. The assumption is that required setup for the tests is not present for them to succeed. If an afterXXX lambda raises an exception, the results of all affected tests are set to `` `broke``.
 
 ## Running tests
 
@@ -127,7 +127,7 @@ Now we can add our first test:
               ("logging calls";([] functionName:``lg; arguments:((::);"Registering client with primary address me"));.qtb.getFuncallLog[]));
       all r,.qtb.matchValue ./: checks }];
 
-This declares the test `successful_add` in the `processRegistration` test suite.  When run, this test will call `processRegistration with the handle number 22 and `` `me`` as arguments. The  `CONNS`  table will be empty and `isValidConnHandle` will return true.
+This declares the test `successful_add` in the `processRegistration` test suite.  When run, this test will call `processRegistration` with the handle number 22 and `` `me`` as arguments. The  `CONNS`  table will be empty and `isValidConnHandle` will return true.
 
 In this test case we expect the registration to succeed (return value 1b), that the arguments provided to the function are stored in the `CONNS` table and that the function writes a log message. Note that the log function `lg` has been overriden at the root level of the test tree to not output anything, but to record all calls with their arguments. Qtb provides helper functions that make it easy to create no-op replacement functions that just record their invocation arguments. These calls are logged in a table and can be retrieved via `.qtb.getFuncalllog[]`. Please see the Reference section in this document for a full description of these functions.
 
@@ -244,7 +244,7 @@ qtb provides generic machinery to record events in a consolidated, typical funct
 
     ([] functionName:`$(); arguments:())
 
-Note that qtb ensures that the first row in this table is a sentinel entry (functionName = ` and arguments = (::)) to avoid any kind of automatic type promotion of columns. This empty table is returned by `.qtb.emptyFuncallLog`, which takes no arguments.
+Note that qtb ensures that the first row in this table is a sentinel entry (functionName = \` and arguments = (::)) to avoid any kind of automatic type promotion of columns. This empty table is returned by `.qtb.emptyFuncallLog`, which takes no arguments.
 
 The sentinel needs to be taken into account when creating an expected log of subfunction calls for a particular test case. So if no subfunction calls are expected, the assertion to check is:
 

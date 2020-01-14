@@ -21,7 +21,6 @@ privExecuteN_all:{[]
 
 checkOverrides:{[] if[not (v;.ctx.f) ~ (42;{});'"Missing overrides!"]};
 
-// FIXME: overrides
 initTestSuite:{[]
   .qtb.priv.ALLTESTS:.tree.new[];
   execute_root_beforeAll_flag::0b;
@@ -40,9 +39,9 @@ initTestSuite:{[]
   .qtb.addBeforeEach[`realtests;{[] execute_realtest_beforeEach_counter+::1;}];
   execute_realtest_afterEach_counter::0;  
   .qtb.addAfterEach[`realtests;{[] execute_realtest_afterEach_counter+::1;}];
-  .qtb.addTest[`realtests`a;{[] checkOverrides[]; 0b}];
-  .qtb.addTest[`realtests`b;{[] checkOverrides[]; 1b}];
-  `execute_exp_res set ([] path:(``realtests`a;``realtests`b); result:`failed`succeeded);
+  .qtb.addTest[`realtests`a;{[] checkOverrides[];}];
+  .qtb.addTest[`realtests`b;{[] checkOverrides[];'"nope!"}];
+  `execute_exp_res set ([] path:(``realtests`a;``realtests`b); result:`succeeded`failed);
   `print_orig set .qtb.priv.print;
   `.qtb.priv.print set {};
   `println_orig set .qtb.priv.println;
@@ -91,7 +90,7 @@ execute_alltests:{[]
   initTestSuite[];
   tr:.qtb.execute[];
   restoreTestSuite[];
-  expres:([] path:(``noexec;``realtests`a;``realtests`b); result:`failed`failed`succeeded);
+  expres:([] path:(``noexec;``realtests`a;``realtests`b); result:`succeeded`succeeded`failed);
   r:all .qtb.matchValue ./: (("Return value";expres;delete time from tr);
                         ("root_beforeAll_flag";1b;execute_root_beforeAll_flag);
                         ("root_afterAll_flag";1b;execute_root_afterAll_flag);
@@ -125,56 +124,38 @@ execute_single:{[]
 
 execute_SUITE:`execute_base`execute_failBeforeAll`execute_alltests`execute_single;
 
-catchX_noarg_noerr:{[] (`success;42)    ~ .qtb.catchX[{[] 42};(::)]     };
-catchX_noarg_error:{[] (`exceptn;"Yo!") ~ .qtb.catchX[{[] '"Yo!"};(::)] };
+try_noarg_noerr:{[] (1b;42)    ~ .qtb.try ({[] 42};(::))     };
+try_noarg_error:{[] (0b;"Yo!") ~ .qtb.try ({[] '"Yo!"};(::)) };
 
-catchX_oneargsimple_noerr:{[] (`success;1b) ~ .qtb.catchX[{x ~ 42};42] };
-catchX_oneargsimple_error:{[] (`exceptn;"42") ~ .qtb.catchX[{'string x};42] };
+try_oneargsimple_noerr:{[] (1b;1b) ~ .qtb.try ({x ~ 42};42) };
+try_oneargsimple_error:{[] (0b;"42") ~ .qtb.try ({'string x};42) };
 
-catchX_oneargsym_noerr:{[] (`success;1b) ~ .qtb.catchX[{x ~ `xx};`xx] };
-catchX_oneargsym_error:{[] (`exceptn;"xx") ~ .qtb.catchX[{'string x};`xx] };
+try_oneargsym_noerr:{[] (1b;1b) ~ .qtb.try ({x ~ `xx};(),`xx) };
+try_oneargsym_error:{[] (0b;"xx") ~ .qtb.try ({'string x};(),`xx) };
 
-catchX_onearglist_noerr:{[] (`success;1b) ~ .qtb.catchX[{x ~ 2 1};2 1] };
-catchX_onearglist_error:{[] (`exceptn;"1",()) ~ .qtb.catchX[{'string x ~ 2 1};2 1] };
+try_onearglist_noerr:{[] (1b;1b) ~ .qtb.try ({x ~ 2 1};2 1) };
+try_onearglist_error:{[] (0b;"1",()) ~ .qtb.try ({'string x ~ 2 1};2 1) };
 
-catchX_oneargsymlist_noerr:{[] (`success;1b) ~ .qtb.catchX[{x ~ `a`b};`a`b] };
-catchX_oneargsymlist_error:{[] (`exceptn;"1",()) ~ .qtb.catchX[{'string x ~ `x`y};`x`y] };
+try_oneargsymlist_noerr:{[] (1b;1b) ~ .qtb.try ({x ~ `a`b};enlist `a`b) };
+try_oneargsymlist_error:{[] (0b;"1",()) ~ .qtb.try ({'string x ~ `x`y};enlist `x`y) };
 
-catchX_oneargtbl_noerr:{[] tt:([] c:1 2); (`success;tt) ~ .qtb.catchX[{x};tt] };
-catchX_oneargtbl_error:{[] tt:([] c:1 2); (`exceptn;"1",()) ~ .qtb.catchX[{[t;x] 'string t ~ x}[tt;];tt] };
+try_oneargtbl_noerr:{[] tt:([] c:1 2); (1b;tt) ~ .qtb.try ({x};tt) };
+try_oneargtbl_error:{[] tt:([] c:1 2); (0b;"1",()) ~ .qtb.try ({[t;x] 'string t ~ x}[tt;];tt) };
 
-catchX_oneargdict_noerr:{[] d:`a`b!1 2; (`success;d) ~ .qtb.catchX[{x};d] };
-catchX_oneargdict_error:{[] d:`a`b!1 2; (`exceptn;"1",()) ~ .qtb.catchX[{[t;x] 'string t ~ x}[d;];d] };
+try_oneargdict_noerr:{[] d:`a`b!1 2; (1b;d) ~ .qtb.try ({x};d) };
+try_oneargdict_error:{[] d:`a`b!1 2; (0b;"1",()) ~ .qtb.try ({[t;x] 'string t ~ x}[d;];d) };
 
-catchX_twoargsimple_noerr:{[] (`success;42 -1) ~ .qtb.catchX[{(x;y)};42 -1] };
-catchX_twoargsimple_error:{[] (`exceptn;"42 -1") ~ .qtb.catchX[{'" " sv string (x;y)};42 -1] };
+try_twoargsimple_noerr:{[] (1b;42 -1) ~ .qtb.try ({(x;y)};42;-1) };
+try_twoargsimple_error:{[] (0b;"42 -1") ~ .qtb.try ({'" " sv string (x;y)};42;-1) };
 
-catchX_twoarglist_noerr:{[] l1:42 -1; l2:`a`b; (`success;(l1;l2)) ~ .qtb.catchX[{(x;y)};(l1;l2)] };
-catchX_twoarglist_error:{[] l1:42 -1; l2:`a`b; (`exceptn;"1",()) ~ .qtb.catchX[{[e;x;y] 'string e ~ (x;y)}[(l1;l2);;];(l1;l2)] };
+try_twoarglist_noerr:{[] l1:42 -1; l2:`a`b; (1b;(l1;l2)) ~ .qtb.try ({(x;y)};l1;enlist l2) };
+try_twoarglist_error:{[] l1:42 -1; l2:`a`b; (0b;"1",()) ~ .qtb.try ({[e;x;y] 'string e ~ (x;y)}[(l1;l2);;];l1;enlist l2) };
 
-catchX_SUITE:`catchX_noarg_noerr`catchX_noarg_error`catchX_oneargsimple_noerr`catchX_oneargsimple_error,
-             `catchX_oneargsym_noerr`catchX_oneargsym_error`catchX_onearglist_noerr`catchX_onearglist_error,
-             `catchX_oneargsymlist_noerr`catchX_oneargsymlist_error`catchX_oneargtbl_noerr`catchX_oneargtbl_error,
-             `catchX_oneargdict_noerr`catchX_oneargdict_error`catchX_twoargsimple_noerr`catchX_twoargsimple_error,
-             `catchX_twoarglist_noerr`catchX_twoarglist_error;
-
-checkX_ok:{[] .qtb.checkX[{[dummy] '"catch me!"};42;"catch me!"] };
-
-checkX_notok:{[] not .qtb.checkX[{[dummy]};42;"catch me!"] };
-
-checkX_other:{[] not .qtb.checkX[{[dummy] '"catch me!"};42;"hey!"] };
-
-checkX_error:{[]
-  println:.qtb.priv.println;
-  `.qtb.priv.println set {};
-  catchX_orig:.qtb.catchX;
-  .qtb.catchX::{[f;args]}; // just do nothing
-  r:.test.checkException[.qtb.checkX;(`f;`arg;"somex");"qtb: catchX failed to return a valid result"];
-  .qtb.catchX::catchX_orig;
-  `.qtb.priv.println set println;
-  r };
-
-checkX_SUITE:`checkX_ok`checkX_ok`checkX_error`checkX_other;
+try_SUITE:`try_noarg_noerr`try_noarg_error`try_oneargsimple_noerr`try_oneargsimple_error,
+             `try_oneargsym_noerr`try_oneargsym_error`try_onearglist_noerr`try_onearglist_error,
+             `try_oneargsymlist_noerr`try_oneargsymlist_error`try_oneargtbl_noerr`try_oneargtbl_error,
+             `try_oneargdict_noerr`try_oneargdict_error`try_twoargsimple_noerr`try_twoargsimple_error,
+             `try_twoarglist_noerr`try_twoarglist_error;
 
 countargs_funcs:{[]
   all .qtb.matchValue ./: (("No argument function";1;.qtb.countargs {[]});
@@ -502,9 +483,6 @@ executeSuite_SUITE:`executeSuite_base`executeSuite_recurseOnce`executeSuite_recu
                    `executeSuite_invalidpath`executeSuite_skip;
 
 executeTestN_stdOverrides:{[]
-  .orig.catchX:.qtb.catchX;
-  .qtb.catchX::{[f;a] (`success;1b)};
- 
   .orig.resetFuncallLog:.qtb.resetFuncallLog;
   .test.resetFuncallLog_calls:0;
   .qtb.resetFuncallLog::{[] .test.resetFuncallLog_calls+:1;};
@@ -524,7 +502,6 @@ executeTestN_stdOverrides:{[]
   };
 
 executeTestN_resetStdOverrides:{[]
-  .qtb.catchX:.orig.catchX;
   .qtb.resetFuncallLog:.orig.resetFuncallLog;
   .qtb.priv.applyOverrides:.orig.applyOverrides;
   .qtb.priv.revertOverrides:.orig.revertOverrides;
@@ -534,7 +511,7 @@ executeTestN_resetStdOverrides:{[]
 
 executeTestN_success:{[]
   executeTestN_stdOverrides[];
-  r:.qtb.priv.executeTest[{1b};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;`he`re)];
+  r:.qtb.priv.executeTest[{};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;`he`re)];
   executeTestN_resetStdOverrides[];
   all (r ~ `testname`result`time!(`re;`succeeded;42f);
        1 = .test.resetFuncallLog_calls;
@@ -545,35 +522,13 @@ executeTestN_success:{[]
 executeTestN_fail:{[]
   executeTestN_stdOverrides[];
   .qtb.catchX::{[f;a] (`success;0b)};
-  r:.qtb.priv.executeTest[{};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;`the`re)];
+  r:.qtb.priv.executeTest[{'"failing!"};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;`the`re)];
   executeTestN_resetStdOverrides[];
   all (r ~ `testname`result`time!(`re;`failed;42f);
        1 = .test.resetFuncallLog_calls;
        .test.applyOverrides_calls ~ enlist (`$())!();
        .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
-       .test.reportTestResult_calls ~ enlist (0b;"executeTestN";`failed;"")) };
-
-executeTestN_exception:{[]
-  executeTestN_stdOverrides[];
-  .qtb.catchX::{[f;a] (`exceptn;"poof")};
-  r:.qtb.priv.executeTest[{};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;`x`y`z)];
-  executeTestN_resetStdOverrides[];
-  all (r ~ `testname`result`time!(`z;`error;42f);
-       1 = .test.resetFuncallLog_calls;
-       .test.applyOverrides_calls ~ enlist (`$())!();
-       .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
-       .test.reportTestResult_calls ~ enlist (0b;"executeTestN";`error;"exception: poof")) };
-
-executeTestN_other:{[]
-  executeTestN_stdOverrides[];
-  .qtb.catchX::{[f;a] (`success;42)};
-  r:.qtb.priv.executeTest[{42};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;(),`xxx)];  
-  executeTestN_resetStdOverrides[];
-  all (r ~ `testname`result`time!(`xxx;`broke;42f);
-       1 = .test.resetFuncallLog_calls;
-       .test.applyOverrides_calls ~ enlist (`$())!();
-       .test.revertOverrides_calls ~ enlist ([] vname:`$(); origValue:(); undef:`boolean$());
-       .test.reportTestResult_calls ~ enlist (0b;"executeTestN";`broke;"unexpected return value")) };
+       (.test.reportTestResult_calls) ~ enlist (0b;"executeTestN";`failed;"failing!")) };
 
 executeTestN_nocatch_success:{[]
   executeTestN_stdOverrides[];
@@ -612,11 +567,11 @@ executeTestN_beforeandafter:{[]
   beforeeaches:({[] `beforeeach_1};{[] `beforeeach_2};{[] `beforeeach_3});
   aftereaches:({[] `aftereach_1};{[] `aftereach_2});
  
-  r:.qtb.priv.executeTest[{0b};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(1b;beforeeaches;aftereaches;"executeTestN.beforeandafter";(`$())!();0b;`he`re)];
+  r:.qtb.priv.executeTest[{};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(1b;beforeeaches;aftereaches;"executeTestN.beforeandafter";(`$())!();0b;`he`re)];
   executeTestN_resetStdOverrides[];
   testname:"executeTestN.beforeandafter";
   .qtb.priv.executeSpecial:executeSpecial_orig;
-  all (r ~ `testname`result`time!(`re;`failed;42f);
+  all (r ~ `testname`result`time!(`re;`succeeded;42f);
        .executeTestN.executeSpecial_log ~
        ((;testname;"BEFOREEACH") each beforeeaches),(;testname;"AFTEREACH") each aftereaches) };
 
@@ -657,9 +612,9 @@ executeTestN_restoreOverrides_afterEachError:{[]
         .test.reportTestResult_calls ~ enlist (0b;"executeTestN.aftereach_error";`broke;"aftereach failure"));
  };
 
-executeTestN_SUITE:`executeTestN_success`executeTestN_fail`executeTestN_exception`executeTestN_other`executeTestN_notafunc,
-                   `executeTestN_toomanyargs`executeTestN_beforeandafter`executeTestN_notest_beforeeacherr,
-                   `executeTestN_nocatch_success`executeTestN_nocatch_exception`executeTestN_restoreOverrides_afterEachError;
+executeTestN_SUITE:`executeTestN_success`executeTestN_fail`executeTestN_notafunc`executeTestN_toomanyargs,
+                   `executeTestN_beforeandafter`executeTestN_notest_beforeeacherr`executeTestN_nocatch_success,
+                   `executeTestN_nocatch_exception`executeTestN_restoreOverrides_afterEachError;
 
 applyOverrides_all:{[]
   applyOverride_orig:.qtb.priv.applyOverride; 
@@ -761,7 +716,11 @@ parseCmdline_all:{[]
   r4:@[baseres;`run;:;1b] ~ .qtb.priv.parseCmdline enlist "-qtb-run";
   r5:@[baseres;`debug;:;1b] ~ .qtb.priv.parseCmdline enlist "-qtb-debug";
   r6:@[baseres;`junit`run;:;(`xxx;1b)] ~ .qtb.priv.parseCmdline ("-qtb-junit";"xxx";"-qtb-run");
-  :all (r1;r2;r3;r4;r5;r6);
+  .q.system:{1i};
+  r7:@[baseres;`run`debug;:;11b] ~ .qtb.priv.parseCmdline enlist "-qtb-run";
+  r8:@[baseres;`debug;:;1b] ~ .qtb.priv.parseCmdline enlist "-qtb-debug";
+  .q.system:system;
+  :all (r1;r2;r3;r4;r5;r6;r7;r8);
   };
 
 testResTree2Tbl_all:{[]
@@ -786,11 +745,60 @@ testResTree2JunitXml_all:{[]
   rootsuite:"<testsuite name=\"root\" package=\"\" hostname=\"",string[.z.h],"\" errors=\"1\" failures=\"1\" tests=\"3\" timestamp=\"2018-03-03T03:03:03\" time=\"0.300\">";
   te_suite:"<testsuite name=\"root.te\" package=\"\" hostname=\"",string[.z.h],"\" errors=\"1\" failures=\"1\" tests=\"3\" timestamp=\"2018-11-11T11:11:11\" time=\"1.100\">";
   st_suite:"<testsuite name=\"root.st\" package=\"\" hostname=\"",string[.z.h],"\" errors=\"1\" failures=\"1\" tests=\"3\" timestamp=\"2018-02-02T02:02:02\" time=\"2.200\">";
-  expdoc:E::raze {[td;ste] (ste;"  <properties />"),td,("  <system-out />";"  <system-err />";"</testsuite>")}[tresdoc] each (rootsuite;te_suite;st_suite);
-  :expdoc ~ A::.qtb.priv.testResTree2JunitXml[0;`$();basesuite];
+  expdoc:raze {[td;ste] (ste;"  <properties />"),td,("  <system-out />";"  <system-err />";"</testsuite>")}[tresdoc] each (rootsuite;te_suite;st_suite);
+  :expdoc ~ .qtb.priv.testResTree2JunitXml[0;`$();basesuite];
   };
 
-ALLTESTS:`privExecuteN_all,execute_SUITE,catchX_SUITE,checkX_SUITE,countargs_SUITE,isEmptyFunc_SUITE,
-         executeSpecial_SUITE,`matchPaths_all,executeSuite_SUITE,executeTestN_SUITE,`applyOverrides_all,
-         `applyOverride_all`revertOverride_all`callLog_all`parseCmdline_all`testResTree2Tbl_all`testResTree2JunitXml_all;
+assertStr_all:{[]
+  `V set `u#`x`y;
+  ev:`V$`y`x`x`y;
+  data:([] v:(0Ng;1b;`x;42f;(`x;42);"lolo";`a`b;.z.d;ev 0;til 3;ev 0 1);
+           estr:("00000000-0000-0000-0000-000000000000";(),"1";(),"x";"42";"(`x;42)";"lolo";"`a`b";string .z.d;(),"y";"0 1 2";"`V$`y`x"));
+  out:update astr:.qtb.assert.str each v from data;
+  delete V from `.;
+  mm::select from out where not estr~'astr;
+  if[0 = count mm;:1b];
+  -1 "Unexpected output from assert.str:";
+  show mm;
+  :0b;
+ };
+
+catchx:{[f;args]
+  cf:$[1 = {count x 1} value f;@;.];
+  :.[{[w;f;a] (1b;w[f;a])};(cf;f;args);(0b;)];
+  };
+
+assertfunc_all:{[]
+  r1:(1b;::) ~ catchx[.qtb.assert.wrapassert;({[x;y] 1b};"checkfunc";1 2)];
+  r2:(0b;"Expected '1' checkfunc '2'") ~ catchx[.qtb.assert.wrapassert;({[x;y] 0b};"checkfunc";1 2)];
+  r3:(0b;"foo") ~ catchx[.qtb.assert.wrapassert;({[x;y] 0b};{[x;y] "foo"};1 2)];
+  :all (r1;r2;r3);
+  };
+
+
+assert_throws_ok:{[] (1b;::) ~ catchx[.qtb.assert.throws;(({[x] '"boom!"};42);"boom!")] };
+
+testfunc:{[x] 42};
+assert_throws_notok:{[]
+  :(0b;"(`testfunc;42) did not throw any exception") ~ catchx[.qtb.assert.throws;((`testfunc;42);"catch me!")];
+  };
+
+assert_throws_other:{[] not first catchx[.qtb.assert.throws;(({[dummy] '"catch me!"};42);"hey!")] };
+
+assert_throws_SUITE:`assert_throws_ok`assert_throws_notok`assert_throws_other;
+
+otherasserts_all:{[]
+  r1:(1b;(::)) ~ catchx[.qtb.assert.matches .;1 1];
+  r2:(0b;"Expected '1' to match '2'") ~ catchx[.qtb.assert.matches .;1 2];
+  r3:(0b;"Expected '1' to be equal to '2'") ~ catchx[.qtb.assert.equals .;1 2];
+  r4:(0b;"Expected '1' to be within '5 10'") ~ catchx[.qtb.assert.within .;(1;5 10)];
+  r5:(0b;"Expected 'xx' to match the pattern 'ab'") ~ catchx[.qtb.assert.like .;(`xx;"ab")];
+  :all (r1;r2;r3;r4;r5);
+  };
+
+
+ALLTESTS:`privExecuteN_all,execute_SUITE,try_SUITE,countargs_SUITE,isEmptyFunc_SUITE,executeSpecial_SUITE,
+         `matchPaths_all,executeSuite_SUITE,executeTestN_SUITE,`applyOverrides_all,`applyOverride_all,
+         `revertOverride_all`callLog_all`parseCmdline_all`testResTree2Tbl_all`testResTree2JunitXml_all,
+          `assertStr_all`assertfunc_all,assert_throws_SUITE,`otherasserts_all;
 

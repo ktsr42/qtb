@@ -296,7 +296,7 @@ priv.testsComplete:{[verbose;junitfile;res]
   :rt;
   };
 
-priv.testResults:`succeeded`failed`error`broke`invalid`skipped!".EFBIS";
+priv.testResults:`succeeded`failed`broke`skipped!".EBS";
 
 priv.reportTestResult:{[verbose;testnames;res;reason]
   if[null priv.testResults res;'"qtb: invalid test result: ",string res];
@@ -379,21 +379,20 @@ priv.executeTest:{[tf;params]
   resetFuncallLog[];
  
   // execute test
-  tres:$[params`nocatch;(`success;tf[]);catchX[tf;`]];
+  tres:$[params`nocatch;(1b;tf[]);try (tf;::)];
  
   // execute afterEaches
-  aeres:all 1b,priv.executeSpecial[;params`tns;"AFTEREACH"] each params`aftereach;
+ aeres:all 1b,priv.executeSpecial[;params`tns;"AFTEREACH"] each params`aftereach;
  
   // revert all overrides
   priv.revertOverrides priv.CURRENT_OVERRIDES;
   priv.CURRENT_OVERRIDES:0#priv.CURRENT_OVERRIDES;
+//  {'"stop!"}[];
   
-  res:$[not aeres;           (`broke;"aftereach failure");
-        `exceptn ~ tres 0;   (`error;"exception: ",tres 1);
-        (`success;0b) ~ tres;(`failed;"");
-        (`success;1b) ~ tres;(`succeeded;"");
-        `success ~ tres 0;   (`broke;"unexpected return value");
-                             '"qtb: unexpected test result"];
+  res:$[not aeres;      (`broke;"aftereach failure");
+        not first tres; (`failed;tres 1);
+        first tres;     (`succeeded;"");
+                        '"qtb: unexpected test result"];
 
   priv.reportTestResult . (params`verbose`tns),res;
   :`testname`result`time!(testname;res 0;priv.durationSeconds[teststart;.z.p]);
@@ -442,10 +441,10 @@ priv.CmdlineFlags:([param:`run`verbose`junit`debug] dflt:(0b;0b;`;0b));
 priv.CmdlineFlagsD:priv.tbl2dict[`param`dflt;priv.CmdlineFlags];
 
 priv.parseCmdline:{[zx]
-  args0:{delete from x where not "qtb-" ~/: 4#/:param } update param:string param from 0!priv.dict2tbl[`param`arg] priv.genDict,.Q.opt zx;
+  args0:{delete from x where not "qtb-" ~/: 4#/:param} update param:string param from 0!priv.dict2tbl[`param`arg] priv.genDict,.Q.opt zx;
   args1:priv.CmdlineFlags lj 1!([] param:enlist`; arg:enlist(::)),update `$4_/:param from args0;
   args2:update argv:{[dflt;args] $[(::) ~ args;dflt;all (() ~ args;-1h = type dflt);not dflt;type[dflt]$first args]}'[dflt;arg] from args1;
-  :priv.tbl2dict[`param`argv] args2;
+  :@[;`debug;or[0 <> .q.system"e"]] priv.tbl2dict[`param`argv] args2;
   };
 
 
@@ -473,6 +472,27 @@ executeDebug:priv.execute[1b;];
 
 // Helper functions for writing tests
 
+.qtb.assert.str:{[o] :(`s#(-0W 0 10 11h!(string;-3!;(::);-3!)))[type o] o};
+.qtb.assert.assertfunc:{[checkf;cfname;expv;actv]
+  if[checkf[expv;actv];:(::)];
+  '$[10h <> type cfname;cfname[expv;actv];"Expected '",.qtb.assert.str[expv],"' ",cfname," '",.qtb.assert.str[actv],"'"];
+  };
+
+.qtb.assert.wrapassert:{[cf;cfname;args]
+  .qtb.assert.assertfunc . $[2 = count args;(cf;cfname);enlist[cfg]],args;
+ };
+
+.qtb.assert.matches:.qtb.assert.assertfunc[~;"to match"];
+.qtb.assert.equals:.qtb.assert.assertfunc[=;"to be equal to"];
+.qtb.assert.within:.qtb.assert.assertfunc[within;"to be within"];
+.qtb.assert.like:.qtb.assert.assertfunc[like;"to match the pattern"];
+.qtb.assert.throws:{[expr;errpat]
+  r:@[(1b;)eval@;expr;(0b;)];
+  if[first r;'.qtb.assert.str[expr]," did not throw any exception"];
+  if[not last[r] like errpat;'.qtb.assert.str[expr]," did not throw exception '",errpat,"', but '",last[r],"'"];
+  };
+
+
 // Might need a testpath argument as well
 matchValue:{[msg;expValue;actValue]
   if[expValue ~ actValue; :1b];
@@ -480,20 +500,9 @@ matchValue:{[msg;expValue;actValue]
   0b };
 
 // Wrapper function to catch exceptions
-catchX:{[f;args]
-  numargs:countargs f;
-  cf:$[0 >= numargs;'"catchX: Unexpected number of arguments";
-       1 =  numargs; {[f;arg]  (`success;f[arg])}[f;];
-                     {[f;args] (`success;f . args)}[f;]];
-  @[cf; args; {(`exceptn;x)}] };
+try:@[(1b;)eval@;;(0b;)];
 
-// Check if a function throws an expected exception
-checkX:{[f;args;msg]
-  res:catchX[f;args];
-  $[`success ~ first res; [priv.println "No exception was thrown"; 0b];
-    (`exceptn;msg) ~ res; 1b;
-    `exceptn ~ first res; [priv.println "Expected exception \"",msg,"\", but got \"",last[res],"\""; 0b];
-      '"qtb: catchX failed to return a valid result"] };
+
 
 // A logging mechanism for function calls
 
