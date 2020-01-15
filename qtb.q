@@ -410,7 +410,11 @@ priv.start:{[ca]
   xp:`nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(ca`debug;`$();();();priv.genDict;`$();`exec;ca`verbose);
   res:priv.executeSuite xp;priv.println "";
   (priv.testsComplete . ca`verbose`junit) res;
-  };
+ };
+
+priv.scriptWithArgs:{[] all (not null .z.f;0 < count .z.x)};
+
+priv.exit:{exit not x};
 
 priv.applyOverride:{[vname;newval]
   currval:$[undef:() ~ key vname;(::);eval vname];
@@ -568,10 +572,15 @@ countargs:{[fp]
 ///////////////////////////////
 // run with command-line paramaters
 run:{[]
-  if[any (null .z.f;0 = count .z.x);:(::)];
+  if[not priv.scriptWithArgs[];:(::)];
   args:priv.parseCmdline .z.x;
   if[not args`run;:(::)];
-  r:@[{(1b;.qtb.priv.start x)};args;(0b;)];
-  if[not r 0; $[args`debug;'r 1;priv.println "Caught exception: ",r 1]];
-  if[not args`debug;exit 1];
+  runfunc:{(1b;.qtb.priv.start x)};
+  r:$[args`debug;runfunc;@[runfunc;;(0b;)]] args;
+  if[not r 0;priv.println "Caught exception: ",r 1];
+  success:$[not r 0;0b;0 = count select from r[1] where result<>`succeeded];
+  if[not args`debug;priv.exit success];
   };
+
+// in non-debug mode, always exit, set status from exception or test result
+// in debug mode, exit only if there is success

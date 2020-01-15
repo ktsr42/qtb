@@ -521,7 +521,6 @@ executeTestN_success:{[]
 
 executeTestN_fail:{[]
   executeTestN_stdOverrides[];
-  .qtb.catchX::{[f;a] (`success;0b)};
   r:.qtb.priv.executeTest[{'"failing!"};`nocatch`beforeeach`aftereach`tns`overrides`verbose`currPath!(0b;();();"executeTestN";(`$())!();0b;`the`re)];
   executeTestN_resetStdOverrides[];
   all (r ~ `testname`result`time!(`re;`failed;42f);
@@ -796,9 +795,98 @@ otherasserts_all:{[]
   :all (r1;r2;r3;r4;r5);
   };
 
+override_simple:{[tgt;val] curr:get tgt;tgt set val; curr};
+
+run_overrides:{[]
+  `TESTARGS set `run`debug!00b;
+  `CALLOG set ();
+  `RESULTS set ([] result:2#`succeeded);
+  :((`scriptWithArgs;override_simple[`.qtb.priv.scriptWithArgs;{1b}]);
+    (`parseCmdline;override_simple[`.qtb.priv.parseCmdline;{[x] TESTARGS}]);
+    (`start;override_simple[`.qtb.priv.start;{CALLOG,::enlist (`start;x);RESULTS}]);
+    (`println;override_simple[`.qtb.priv.println;{CALLOG,::enlist (`println;x);(::)}]);
+    (`exit;override_simple[`.qtb.priv.exit;{CALLOG,::enlist(`exit;x);:(::)}]));
+  };
+
+run_restore:{[origs]
+  delete TESTARGS from `.;
+  delete CALLOG from `.;
+  delete RESULTS from `.;
+  .[set]'[origs];
+  };
+  
+
+run_norun:{[]
+  origs:run_overrides[];
+  .qtb.run[];
+  r:CALLOG ~ ();
+  run_restore origs;
+  :r;
+  };
+
+run_normal_aok:{[]
+  origs:run_overrides[];
+  TESTARGS[`run]:1b;
+  .qtb.run[];
+  r:CALLOG ~ ((`start;TESTARGS);(`exit;1b));
+  run_restore origs;
+  :r;
+  };
+
+run_normal_fail:{[]
+  origs:run_overrides[];
+  TESTARGS[`run]:1b;
+  .[`RESULTS;(1;`result);:;`failed];
+  .qtb.run[];
+  r:CALLOG ~ ((`start;TESTARGS);(`exit;0b));
+  run_restore origs;
+  :r;
+  };
+
+run_debug_aok:{[]
+  origs:run_overrides[];
+  TESTARGS[`run]:1b;TESTARGS[`debug]:1b;
+  .qtb.run[];
+  r:CALLOG ~ enlist (`start;TESTARGS);
+  run_restore origs;
+  :r;
+  };
+
+run_debug_fail:{[]
+  origs:run_overrides[];
+  TESTARGS[`run]:1b;TESTARGS[`debug]:1b;
+  .[`RESULTS;(1;`result);:;`failed];
+  .qtb.run[];
+  r:CALLOG ~ enlist (`start;TESTARGS);
+  run_restore origs;
+  :r;
+  };
+
+run_normal_ex:{[]
+  origs:run_overrides[];
+  TESTARGS[`run]:1b;
+  `.qtb.priv.start set {[x] CALLOG,::enlist (`start;x);'"duh!"};
+  .qtb.run[];
+  r:CALLOG ~ ((`start;TESTARGS);(`println;"Caught exception: duh!");(`exit;0b));
+  run_restore origs;
+  :r;
+  };
+
+run_debug_ex:{[]
+  origs:run_overrides[];
+  TESTARGS[`run]:1b;TESTARGS[`debug]:1b;
+  `.qtb.priv.start set {[x] CALLOG,::enlist (`start;x);'"duh!"};
+  rr:catchx[.qtb.run;::];
+  r:all (CALLOG ~ enlist (`start;TESTARGS);rr ~ (0b;"duh!"));
+  run_restore origs;
+  :r;
+  };
+
+run_SUITE:`run_norun`run_normal_aok`run_normal_fail`run_debug_aok`run_debug_fail`run_normal_ex`run_debug_ex;
+
 
 ALLTESTS:`privExecuteN_all,execute_SUITE,try_SUITE,countargs_SUITE,isEmptyFunc_SUITE,executeSpecial_SUITE,
          `matchPaths_all,executeSuite_SUITE,executeTestN_SUITE,`applyOverrides_all,`applyOverride_all,
          `revertOverride_all`callLog_all`parseCmdline_all`testResTree2Tbl_all`testResTree2JunitXml_all,
-          `assertStr_all`assertfunc_all,assert_throws_SUITE,`otherasserts_all;
+          `assertStr_all`assertfunc_all,assert_throws_SUITE,`otherasserts_all,run_SUITE;
 
