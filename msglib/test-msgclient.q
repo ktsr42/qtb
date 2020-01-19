@@ -208,7 +208,7 @@
   .msg.priv.CONN_STATE:`registration_pending;
   .msg.priv.MSGSERVER::43;
   .qtb.assert.throws[(`.msg.sendMsg;(),`alice;"Yo!");"msgclient: not connected"];
-  .qtb.matchValue[.qtb.emptyFuncallLog[];.qtb.getFuncallLog[]];
+  .qtb.assert.matches[.qtb.emptyFuncallLog[];.qtb.getFuncallLog[]];
   }];
 
 

@@ -18,6 +18,10 @@ privExecuteN_all:{[]
   :exp_res ~ r;
   };
 
+matchValue:{[msg;expValue;actValue]
+  if[expValue ~ actValue; :1b];
+  priv.println msg," does not match. Expected: ",(-3! expValue),", actual: ",-3! actValue;
+  0b };
 
 checkOverrides:{[] if[not (v;.ctx.f) ~ (42;{});'"Missing overrides!"]};
 
@@ -61,14 +65,14 @@ execute_base:{[]
   tr:.qtb.execute `realtests;
   if[any {x[;0]} {@[{(1b;x;value x)};x;(0b;)]}'[`v`.ctx.f];'"override left defined"];
   restoreTestSuite[];
-  all .qtb.matchValue ./: (("Return value";execute_exp_res;select path, result from tr);
-                      ("root_beforeAll_flag";1b;execute_root_beforeAll_flag);
-                      ("root_afterAll_flag";1b;execute_root_afterAll_flag);
-                      ("root_test_flag";0b;execute_root_test_flag);
-                      ("realtest_beforeAll_flag";1b;execute_realtest_beforeAll_flag);
-                      ("realtest_afterAll_flag";1b;execute_realtest_afterAll_flag);
-                      ("realtest_beforeEach_counter";2;execute_realtest_beforeEach_counter);
-                      ("realtest_aferEach_counter";2;execute_realtest_afterEach_counter) ) };
+  all matchValue ./: (("Return value";execute_exp_res;select path, result from tr);
+		      ("root_beforeAll_flag";1b;execute_root_beforeAll_flag);
+		      ("root_afterAll_flag";1b;execute_root_afterAll_flag);
+		      ("root_test_flag";0b;execute_root_test_flag);
+		      ("realtest_beforeAll_flag";1b;execute_realtest_beforeAll_flag);
+		      ("realtest_afterAll_flag";1b;execute_realtest_afterAll_flag);
+		      ("realtest_beforeEach_counter";2;execute_realtest_beforeEach_counter);
+		      ("realtest_aferEach_counter";2;execute_realtest_afterEach_counter) ) };
 
 
 execute_failBeforeAll:{[]
@@ -76,7 +80,7 @@ execute_failBeforeAll:{[]
   .qtb.addBeforeAll[`realtests;{[] execute_realtest_beforeAll_flag::1b;'"fire in the hole!"}];
   tr:.qtb.execute`realtests;
   restoreTestSuite[];
-  r:all .qtb.matchValue ./: (("Return value";([] path:(``realtests`a;``realtests`b); result:`skipped`skipped; time:0 0f);tr);
+  r:all matchValue ./: (("Return value";([] path:(``realtests`a;``realtests`b); result:`skipped`skipped; time:0 0f);tr);
                         ("root_beforeAll_flag";1b;execute_root_beforeAll_flag);
                         ("root_afterAll_flag";1b;execute_root_afterAll_flag);
                         ("root_test_flag";0b;execute_root_test_flag);
@@ -91,7 +95,7 @@ execute_alltests:{[]
   tr:.qtb.execute[];
   restoreTestSuite[];
   expres:([] path:(``noexec;``realtests`a;``realtests`b); result:`succeeded`succeeded`failed);
-  r:all .qtb.matchValue ./: (("Return value";expres;delete time from tr);
+  r:all matchValue ./: (("Return value";expres;delete time from tr);
                         ("root_beforeAll_flag";1b;execute_root_beforeAll_flag);
                         ("root_afterAll_flag";1b;execute_root_afterAll_flag);
                         ("root_test_flag";1b;execute_root_test_flag);
@@ -109,7 +113,7 @@ execute_single:{[]
   .qtb.addTest[`realtests`b;{[] execute_realtest_b::0b; 1b}];
   tr:.qtb.execute `realtests`a;
   restoreTestSuite[];
-  r:all .qtb.matchValue ./: (("Return value";([] path:enlist ``realtests`a; result:enlist `succeeded);delete time from tr);
+  r:all matchValue ./: (("Return value";([] path:enlist ``realtests`a; result:enlist `succeeded);delete time from tr);
                         ("root_beforeAll_flag";1b;execute_root_beforeAll_flag);
                         ("root_afterAll_flag";1b;execute_root_afterAll_flag);
                         ("root_test_flag";0b;execute_root_test_flag);
@@ -158,12 +162,12 @@ try_SUITE:`try_noarg_noerr`try_noarg_error`try_oneargsimple_noerr`try_oneargsimp
              `try_twoarglist_noerr`try_twoarglist_error;
 
 countargs_funcs:{[]
-  all .qtb.matchValue ./: (("No argument function";1;.qtb.countargs {[]});
+  all matchValue ./: (("No argument function";1;.qtb.countargs {[]});
                       ("One argument function";1;.qtb.countargs {[a] a+1});
                       ("Three argument function";3;.qtb.countargs {[a;b;c] a+b+c})) };
 
 countargs_projections:{[]
-  all .qtb.matchValue ./: (("Two arg func with first provided";1;.qtb.countargs {[a;b] a+b}[1]);
+  all matchValue ./: (("Two arg func with first provided";1;.qtb.countargs {[a;b] a+b}[1]);
                       ("Two arg func with second provided";1;.qtb.countargs {[a;b] a+b}[;1]);
                       ("Five arg func with arg two and four given";3;.qtb.countargs {[a;b;c;d;e] a+b+c+d+e}[;2;;3]);
                       ("Four arg func with first one given";3;.qtb.countargs {[a;b;c;d] a+b+c+d}[1]);

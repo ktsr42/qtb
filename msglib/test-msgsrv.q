@@ -122,8 +122,9 @@
 
 .qtb.addTest[`connectionDropped`validhandle;{[]
   connectionDropped 42i;
-  r:0 = count exec primaryAddress from CONNS where clientHandle = 42;
-  r and .qtb.matchValue["Call log";([] functionName:``lg; arguments:((::);"Client him closed the connection"));.qtb.getFuncallLog[]] }];
+  .qtb.assert.equals[0;count exec primaryAddress from CONNS where clientHandle = 42];
+  .qtb.assert.matches[([] functionName:``lg; arguments:((::);"Client him closed the connection"));.qtb.getFuncallLog[]];
+  }];
 
 .qtb.addTest[`connectionDropped`invalidhandle;{[]
   connectionDropped 100i;

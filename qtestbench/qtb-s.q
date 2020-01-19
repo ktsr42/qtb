@@ -249,7 +249,7 @@ priv.execute:{[catchX;basepath]
 priv.start:{[ca]
   xp:`nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(ca`debug;`$();();();priv.genDict;`$();`exec;ca`verbose);
   res:priv.executeSuite xp;priv.println "";
-  (priv.testsComplete . ca`verbose`junit) res;
+  :(priv.testsComplete . ca`verbose`junit) res;
  };
 
 priv.scriptWithArgs:{[] all (not null .z.f;0 < count .z.x)};
@@ -336,34 +336,16 @@ executeDebug:priv.execute[1b;];
   if[not last[r] like errpat;'.qtb.assert.str[expr]," did not throw exception '",errpat,"', but '",last[r],"'"];
   };
 
-
+/
 // Might need a testpath argument as well
 matchValue:{[msg;expValue;actValue]
   if[expValue ~ actValue; :1b];
   priv.println msg," does not match. Expected: ",(-3! expValue),", actual: ",-3! actValue;
   0b };
+\
 
 // Wrapper function to catch exceptions
 try:@[(1b;)eval@;;(0b;)];
-
-/
-catchX:{[f;args]
-  numargs:countargs f;
-  cf:$[0 >= numargs;'"catchX: Unexpected number of arguments";
-       1 =  numargs; {[f;arg]  (`success;f[arg])}[f;];
-                     {[f;args] (`success;f . args)}[f;]];
-  @[cf; args; {(`exceptn;x)}] };
-\
-
-/
-// Check if a function throws an expected exception
-checkX:{[f;args;msg]
-  res:catchX[f;args];
-  $[`success ~ first res; [priv.println "No exception was thrown"; 0b];
-    (`exceptn;msg) ~ res; 1b;
-    `exceptn ~ first res; [priv.println "Expected exception \"",msg,"\", but got \"",last[res],"\""; 0b];
-      '"qtb: catchX failed to return a valid result"] };
-\
 
 // A logging mechanism for function calls
 

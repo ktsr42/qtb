@@ -409,7 +409,7 @@ priv.execute:{[catchX;basepath]
 priv.start:{[ca]
   xp:`nocatch`basepath`beforeeach`aftereach`overrides`currPath`mode`verbose!(ca`debug;`$();();();priv.genDict;`$();`exec;ca`verbose);
   res:priv.executeSuite xp;priv.println "";
-  (priv.testsComplete . ca`verbose`junit) res;
+  :(priv.testsComplete . ca`verbose`junit) res;
  };
 
 priv.scriptWithArgs:{[] all (not null .z.f;0 < count .z.x)};
@@ -497,16 +497,8 @@ executeDebug:priv.execute[1b;];
   };
 
 
-// Might need a testpath argument as well
-matchValue:{[msg;expValue;actValue]
-  if[expValue ~ actValue; :1b];
-  priv.println msg," does not match. Expected: ",(-3! expValue),", actual: ",-3! actValue;
-  0b };
-
 // Wrapper function to catch exceptions
 try:@[(1b;)eval@;;(0b;)];
-
-
 
 // A logging mechanism for function calls
 
